@@ -107,11 +107,42 @@ class StockAnalyzer():
         m3.metric("LATEST SIGNAL", "BUY" if last_row['Signal']==1 else "SELL" if last_row['Signal']==-1 else "HOLD")
 
     def display_financials(self):
-        ticker_obj = yf.Ticker(self.ticker)
-        df_fin = ticker_obj.quarterly_financials
-        if not df_fin.empty:
-            st.dataframe(df_fin.style.highlight_max(axis=1, color='#004d4d'))
+        try:
+            ticker_obj = yf.Ticker(self.ticker)
+            df_fin = ticker_obj.quarterly_financials
+            
+            if df_fin.empty:
+                st.warning("분기 재무 데이터를 불러올 수 없습니다.")
+                return
 
+            # 1. 가장 중요한 4가지만 골라내고 한글로 번역
+            target_metrics = {
+                'Total Revenue': '매출액',
+                'Net Income': '당기순이익',
+                'Operating Income': '영업이익',
+                'EBITDA': '현금창출력(EBITDA)'
+            }
+            
+            # 데이터프레임에서 위 항목만 추출
+            available_metrics = [m for m in target_metrics.keys() if m in df_fin.index]
+            df_filtered = df_fin.loc[available_metrics].copy()
+            df_filtered.index = [target_metrics[m] for m in available_metrics]
+
+            # 2. 숫자를 읽기 쉽게 변환 (예: 8,393,000,000 -> 8.39 B)
+            def format_billions(x):
+                if pd.isna(x) or x == 0: return "-"
+                return f"{x / 1e9:,.2f} B"
+
+            st.subheader(f"📊 {self.ticker} 분기별 핵심 실적 요약")
+            
+            # 스타일 적용 (최대값 강조 + 포맷팅)
+            formatted_df = df_filtered.map(format_billions)
+            st.dataframe(formatted_df, use_container_width=True)
+            
+            st.caption("※ B = 10억 달러 (Billion). 숫자가 낮을수록 기업의 규모나 수익이 적음을 의미합니다.")
+            
+        except Exception as e:
+            st.error(f"재무 데이터 정리 중 에러 발생: {e}")
     def visualize(self):
         # 다크모드 차트 설정
         plt.style.use('dark_background')
