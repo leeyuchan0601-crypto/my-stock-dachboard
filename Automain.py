@@ -106,38 +106,40 @@ class StockAnalyzer():
     def display_financials(self):
         try:
             ticker_obj = yf.Ticker(self.ticker)
-            # 연간 손익계산서 가져오기
-            df_fin = ticker_obj.financials
+            
+            # [변경] 연간(financials) 대신 분기별(quarterly_financials) 데이터를 가져옵니다.
+            df_fin = ticker_obj.quarterly_financials
             
             if df_fin.empty:
-                st.warning("재무 데이터를 불러올 수 없습니다.")
+                st.warning("분기 재무 데이터를 불러올 수 없습니다.")
                 return
 
-            # 금융 문맹도 이해하기 쉬운 주요 항목만 필터링 (영문 -> 한글 변환)
+            # 초보자도 이해하기 쉬운 핵심 항목 필터링
             target_metrics = {
                 'Total Revenue': '매출액',
                 'Net Income': '당기순이익',
                 'Operating Income': '영업이익',
-                'EBITDA': 'EBITDA (현금창출력)'
+                'EBITDA': '현금창출력(EBITDA)'
             }
             
-            # 존재하는 항목만 추출
             available_metrics = [m for m in target_metrics.keys() if m in df_fin.index]
             df_filtered = df_fin.loc[available_metrics].copy()
             df_filtered.index = [target_metrics[m] for m in available_metrics]
 
-            # 숫자를 읽기 쉽게 단위 변경 (예: 10억 단위)
+            # 가독성을 위해 10억 달러(B) 단위로 포맷팅
             def format_billions(x):
-                if pd.isna(x): return "-"
-                return f"{x / 1e9:,.1f} B" # Billion 단위
+                if pd.isna(x) or x == 0: return "-"
+                return f"{x / 1e9:,.2f} B"
 
-            st.subheader(f"📊 {self.ticker} 연간 핵심 재무 지표 (단위: 10억 달러)")
+            st.subheader(f"📊 {self.ticker} 최근 분기별 핵심 실적 (단위: 10억 달러)")
+            
+            # 테이블 출력
             st.dataframe(df_filtered.map(format_billions), use_container_width=True)
-            st.caption("※ 데이터는 최신 연도 순으로 표시됩니다.")
+            
+            st.caption("※ 최근 4개 분기 실적이 왼쪽부터 순서대로 표시됩니다.")
             
         except Exception as e:
             st.error(f"재무 데이터 분석 중 에러 발생: {e}")
-
     def visualize(self):
         if self.df is None: return
 
