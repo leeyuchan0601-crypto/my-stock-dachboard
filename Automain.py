@@ -23,8 +23,8 @@ if os.path.exists(image_path):
     st.image(image_path, use_container_width=True)
 
 # 4. 타이틀 및 설명
-st.title("🛡️ ARK CAPITAL : The Final Shelter")
-st.subheader("금융의 어둠 속에서 당신의 자산을 지키는 최후의 방주")
+st.title(" ZION : ZERO INSIGHT ON")
+st.subheader("금융을 바라보는 올바른 시선")
 st.markdown("---")
 #대형 클래스
 class StockAnalyzer():
