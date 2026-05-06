@@ -14,8 +14,12 @@ class StockAnalyzer():
             try:
                 data = yf.download(self.ticker, start=start_date, end=end_date)
                 if data.empty:
-                    st.error("수집된 데이터가 없습니다. 종목 코드나 기간을 확인하세요.")
+                    st.error("수집된 데이터가 없습니다.")
                     return False
+                
+                # [추가] 멀티 인덱스라면 가장 윗 단계(Close, High 등)만 남기고 정리합니다.
+                if isinstance(data.columns, pd.MultiIndex):
+                    data.columns = data.columns.get_level_values(0)
                 
                 self.df = data
                 st.success("데이터 수집 완료!")
