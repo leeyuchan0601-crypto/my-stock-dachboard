@@ -3,7 +3,30 @@ import matplotlib.pyplot as plt
 import yfinance as yf
 import pandas as pd
 import datetime
+from PIL import Image
+import os
 
+#이미지
+# 1. 파일 경로 설정
+image_path = "ark_base.png"
+
+# 2. 브라우저 탭 아이콘 설정 (이미지가 있으면 쓰고 없으면 이모지)
+if os.path.exists(image_path):
+    img = Image.open(image_path)
+    st.set_page_config(page_title="ARK CAPITAL", page_icon=img, layout="wide")
+else:
+    st.set_page_config(page_title="ARK CAPITAL", page_icon="🛡️", layout="wide")
+
+# 3. 앱 상단에 간지나는 메인 이미지 삽입
+if os.path.exists(image_path):
+    # 이미지를 화면 너비에 맞춰 출력
+    st.image(image_path, use_container_width=True)
+
+# 4. 타이틀 및 설명
+st.title("🛡️ ARK CAPITAL : The Final Shelter")
+st.subheader("금융의 어둠 속에서 당신의 자산을 지키는 최후의 방주")
+st.markdown("---")
+#대형 클래스
 class StockAnalyzer():
     def __init__(self, ticker):
         self.ticker = ticker
