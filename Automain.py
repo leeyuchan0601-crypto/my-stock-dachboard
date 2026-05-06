@@ -133,7 +133,7 @@ class StockAnalyzer():
                 if pd.isna(x) or x == 0: return "-"
                 return f"{x / 1e9:,.2f} B"
 
-            st.subheader(f"📊 {self.ticker} 분기별 핵심 실적 요약")
+            st.subheader(f"{self.ticker} 분기별 핵심 실적 요약")
             
             # 스타일 적용 (최대값 강조 + 포맷팅)
             formatted_df = df_filtered.map(format_billions)
@@ -170,7 +170,7 @@ if analyze_btn:
         
         analyzer.display_metrics()
         
-        st.markdown("### 🛠️ SYSTEM DIAGNOSTICS")
+        st.markdown("###  SYSTEM DIAGNOSTICS")
         # 탭 생성
         tab1, tab2, tab3 = st.tabs(["CHART ANALYSIS", "FINANCIAL DATA", "RAW LOGS"])
         
