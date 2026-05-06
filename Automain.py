@@ -64,26 +64,29 @@ class StockAnalyzer():
         st.info(f"신호 분석 완료: 🟢 매수 신호 {buy_count}건 | 🔴 매도 신호 {sell_count}건")
 
     def display_metrics(self):
-        if self.df is None: return
+        if self.df is None or len(self.df) < 2: return
 
-        # 가장 최근 데이터 가져오기
+        # 가장 최근 데이터와 이전 데이터 가져오기
         last_row = self.df.iloc[-1]
         prev_row = self.df.iloc[-2]
 
-        current_price = last_row['Close']
-        prev_price = prev_row['Close']
-        price_diff = current_price - prev_price
-        
-        current_rsi = last_row['RSI']
+        # float()를 씌워서 확실하게 숫자 하나만 뽑아옵니다.
+        try:
+            current_price = float(last_row['Close'])
+            prev_price = float(prev_row['Close'])
+            price_diff = current_price - prev_price
+            current_rsi = float(last_row['RSI'])
+        except (TypeError, ValueError):
+            # 데이터가 비어있거나 형식이 이상할 경우 대비
+            st.warning("데이터 형식이 올바르지 않습니다.")
+            return
 
-        # 화면에 3개의 컬럼으로 지표 표시
         m1, m2, m3 = st.columns(3)
         
         with m1:
             st.metric(label="현재 주가", value=f"${current_price:.2f}", delta=f"{price_diff:.2f}")
         
         with m2:
-            # RSI 상태 해석
             rsi_status = "보통"
             if current_rsi >= 70: rsi_status = "⚠️ 과매수 (위험)"
             elif current_rsi <= 30: rsi_status = "✅ 과매도 (기회)"
@@ -91,7 +94,6 @@ class StockAnalyzer():
             st.caption(f"현재 시장 상태는 **{rsi_status}** 입니다.")
 
         with m3:
-            # 마지막 신호 요약
             last_signal = "신호 없음"
             if last_row['Signal'] == 1: last_signal = "🟢 매수 추천"
             elif last_row['Signal'] == -1: last_signal = "🔴 매도 추천"
