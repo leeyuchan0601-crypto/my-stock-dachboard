@@ -63,6 +63,75 @@ class StockAnalyzer():
         sell_count = sum(self.df['Signal']==-1)
         st.info(f"신호 분석 완료: 🟢 매수 신호 {buy_count}건 | 🔴 매도 신호 {sell_count}건")
 
+    def display_metrics(self):
+        if self.df is None: return
+
+        # 가장 최근 데이터 가져오기
+        last_row = self.df.iloc[-1]
+        prev_row = self.df.iloc[-2]
+
+        current_price = last_row['Close']
+        prev_price = prev_row['Close']
+        price_diff = current_price - prev_price
+        
+        current_rsi = last_row['RSI']
+
+        # 화면에 3개의 컬럼으로 지표 표시
+        m1, m2, m3 = st.columns(3)
+        
+        with m1:
+            st.metric(label="현재 주가", value=f"${current_price:.2f}", delta=f"{price_diff:.2f}")
+        
+        with m2:
+            # RSI 상태 해석
+            rsi_status = "보통"
+            if current_rsi >= 70: rsi_status = "⚠️ 과매수 (위험)"
+            elif current_rsi <= 30: rsi_status = "✅ 과매도 (기회)"
+            st.metric(label="현재 RSI 점수", value=f"{current_rsi:.1f}", help="70 이상이면 과열, 30 이하면 저평가 상태입니다.")
+            st.caption(f"현재 시장 상태는 **{rsi_status}** 입니다.")
+
+        with m3:
+            # 마지막 신호 요약
+            last_signal = "신호 없음"
+            if last_row['Signal'] == 1: last_signal = "🟢 매수 추천"
+            elif last_row['Signal'] == -1: last_signal = "🔴 매도 추천"
+            st.metric(label="최근 분석 결과", value=last_signal)
+
+    def display_financials(self):
+        try:
+            ticker_obj = yf.Ticker(self.ticker)
+            # 연간 손익계산서 가져오기
+            df_fin = ticker_obj.financials
+            
+            if df_fin.empty:
+                st.warning("재무 데이터를 불러올 수 없습니다.")
+                return
+
+            # 금융 문맹도 이해하기 쉬운 주요 항목만 필터링 (영문 -> 한글 변환)
+            target_metrics = {
+                'Total Revenue': '매출액',
+                'Net Income': '당기순이익',
+                'Operating Income': '영업이익',
+                'EBITDA': 'EBITDA (현금창출력)'
+            }
+            
+            # 존재하는 항목만 추출
+            available_metrics = [m for m in target_metrics.keys() if m in df_fin.index]
+            df_filtered = df_fin.loc[available_metrics].copy()
+            df_filtered.index = [target_metrics[m] for m in available_metrics]
+
+            # 숫자를 읽기 쉽게 단위 변경 (예: 10억 단위)
+            def format_billions(x):
+                if pd.isna(x): return "-"
+                return f"{x / 1e9:,.1f} B" # Billion 단위
+
+            st.subheader(f"📊 {self.ticker} 연간 핵심 재무 지표 (단위: 10억 달러)")
+            st.dataframe(df_filtered.map(format_billions), use_container_width=True)
+            st.caption("※ 데이터는 최신 연도 순으로 표시됩니다.")
+            
+        except Exception as e:
+            st.error(f"재무 데이터 분석 중 에러 발생: {e}")
+
     def visualize(self):
         if self.df is None: return
 
@@ -98,9 +167,9 @@ class StockAnalyzer():
 
 
 # === Streamlit UI 구성 ===
-st.set_page_config(page_title="주식 기술적 분석 대시보드", layout="wide")
-st.title("기술적 분석 및 매매 신호 ")
-st.markdown("이평선 골든/데드 크로스와 RSI 지표를 활용하여 매수/매도 타이밍을 분석합니다.")
+st.set_page_config(page_title="zion", layout="wide")
+st.title("기술적 분석 및 매매 신호")
+st.markdown("이평선 골든/데드 크로스와 RSI 지표를 활용하여 매수/매도 기준을 제공합니다.")
 
 # 사이드바 입력 폼
 with st.sidebar:
@@ -111,20 +180,25 @@ with st.sidebar:
     with col1:
         start_date = st.date_input("시작일", datetime.date(2025, 1, 1))
     with col2:
-        end_date = st.date_input("종료일", datetime.date(2026, 4, 15))
+        end_date = st.date_input("종료일", datetime.date.today())
     
     analyze_btn = st.button("분석 실행", type="primary", use_container_width=True)
 
 # 메인 화면 로직
 if analyze_btn:
-    if start_date >= end_date:
-        st.error("종료일이 시작일보다 빠를 수 없습니다.")
-    else:
-        analyzer = StockAnalyzer(ticker_input.upper())
-        if analyzer.fetch_data(start_date, end_date):
-            analyzer.calculate_indicators()
-            analyzer.get_signals()
-            analyzer.visualize()
-            
-            with st.expander("데이터 원본 보기 (최근 10일)"):
-                st.dataframe(analyzer.df.tail(10))
+    # ... (기존 데이터 수집 및 차트 코드) ...
+    if analyzer.fetch_data(start_date, end_date):
+        analyzer.calculate_indicators()
+        analyzer.get_signals()
+        
+        # 1. 상단 메트릭 요약
+        analyzer.display_metrics() 
+        
+        # 2. 메인 차트
+        analyzer.visualize()
+        
+        st.markdown("---")
+        
+        # 3. 추가된 재무 제표 표 (사용자가 선택해서 볼 수 있게 expander에 넣는 것도 좋습니다)
+        with st.expander("💼 기업 펀더멘탈 (재무 데이터) 확인하기", expanded=True):
+            analyzer.display_financials()
