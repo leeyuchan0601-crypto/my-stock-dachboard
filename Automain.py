@@ -186,19 +186,32 @@ with st.sidebar:
 
 # 메인 화면 로직
 if analyze_btn:
-    # ... (기존 데이터 수집 및 차트 코드) ...
-    if analyzer.fetch_data(start_date, end_date):
-        analyzer.calculate_indicators()
-        analyzer.get_signals()
+    if start_date >= end_date:
+        st.error("종료일이 시작일보다 빠를 수 없습니다.")
+    else:
+        # 1. 여기서 analyzer를 정의해줘야 합니다! (이 줄이 빠졌을 거예요)
+        analyzer = StockAnalyzer(ticker_input.upper())
         
-        # 1. 상단 메트릭 요약
-        analyzer.display_metrics() 
-        
-        # 2. 메인 차트
-        analyzer.visualize()
-        
-        st.markdown("---")
-        
-        # 3. 추가된 재무 제표 표 (사용자가 선택해서 볼 수 있게 expander에 넣는 것도 좋습니다)
-        with st.expander("💼 기업 펀더멘탈 (재무 데이터) 확인하기", expanded=True):
-            analyzer.display_financials()
+        # 2. 이제 analyzer를 사용할 수 있습니다.
+        if analyzer.fetch_data(start_date, end_date):
+            analyzer.calculate_indicators()
+            analyzer.get_signals()
+            
+            # 상단 지표 요약
+            st.subheader(f"🔍 {ticker_input.upper()} 현재 상황 요약")
+            analyzer.display_metrics() 
+            
+            st.markdown("---")
+            
+            # 메인 차트
+            analyzer.visualize()
+            
+            st.markdown("---")
+            
+            # 재무 제표 expander
+            with st.expander("💼 기업 펀더멘탈 (재무 데이터) 확인하기", expanded=True):
+                analyzer.display_financials()
+            
+            # 데이터 원본 보기
+            with st.expander("원본 데이터 보기 (최근 10일)"):
+                st.dataframe(analyzer.df.tail(10))
