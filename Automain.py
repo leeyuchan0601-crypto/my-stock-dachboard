@@ -48,12 +48,8 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. 메인 비주얼 ---
-if os.path.exists(image_path):
-    st.image(image_path, use_container_width=True)
-
-st.title("🛰️ ZION : ZERO INSIGHT ON")
-st.subheader("금융의 심연을 꿰뚫는 최후의 시선")
+st.title(" ZION : ZERO INSIGHT ON")
+st.subheader("금융을 바라보는 올바른 시선")
 st.markdown("---")
 
 # [클래스 부분은 기존과 동일하되, UI 요소만 살짝 다듬습니다]
@@ -63,7 +59,7 @@ class StockAnalyzer():
         self.df = None
 
     def fetch_data(self, start_date, end_date):
-        with st.spinner(f"📡 [ZION] {self.ticker} 데이터 동기화 중..."):
+        with st.spinner(f" [ZION] {self.ticker} 데이터 동기화 중..."):
             try:
                 data = yf.download(self.ticker, start=start_date, end=end_date)
                 if data.empty:
@@ -128,7 +124,7 @@ class StockAnalyzer():
 
 # --- 4. 사이드바 ---
 with st.sidebar:
-    st.header("🛸 CONTROL CENTER")
+    st.header("CONTROL CENTER")
     ticker_input = st.text_input("TARGET TICKER", value="ORCL")
     start_date = st.date_input("START", datetime.date(2025, 1, 1))
     end_date = st.date_input("END", datetime.date.today())
@@ -145,7 +141,7 @@ if analyze_btn:
         
         st.markdown("### 🛠️ SYSTEM DIAGNOSTICS")
         # 탭 생성
-        tab1, tab2, tab3 = st.tabs(["📊 CHART ANALYSIS", "💼 FINANCIAL DATA", "📜 RAW LOGS"])
+        tab1, tab2, tab3 = st.tabs(["CHART ANALYSIS", "FINANCIAL DATA", "RAW LOGS"])
         
         with tab1:
             analyzer.visualize()
