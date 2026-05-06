@@ -6,243 +6,152 @@ import datetime
 from PIL import Image
 import os
 
-#이미지
-# 1. 파일 경로 설정
+# --- 1. 페이지 설정 (맨 위에 한 번만!) ---
 image_path = "ark_base.png"
-
-# 2. 브라우저 탭 아이콘 설정 (이미지가 있으면 쓰고 없으면 이모지)
 if os.path.exists(image_path):
     img = Image.open(image_path)
-    st.set_page_config(page_title="ARK CAPITAL", page_icon=img, layout="wide")
+    st.set_page_config(page_title="ZION", page_icon=img, layout="wide")
 else:
-    st.set_page_config(page_title="ARK CAPITAL", page_icon="🛡️", layout="wide")
+    st.set_page_config(page_title="ZION", page_icon="🛡️", layout="wide")
 
-# 3. 앱 상단에 간지나는 메인 이미지 삽입
+# --- 2. 하이테크 커스텀 CSS 주입 ---
+st.markdown("""
+    <style>
+    /* 메인 배경 및 폰트 설정 */
+    .main {
+        background-color: #0e1117;
+    }
+    h1, h2, h3 {
+        color: #00d4ff !important;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    /* 메트릭 카드 스타일링 */
+    div[data-testid="metric-container"] {
+        background-color: rgba(0, 212, 255, 0.05);
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    /* 버튼 스타일 */
+    .stButton>button {
+        background-color: #00d4ff;
+        color: black;
+        border-radius: 5px;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #ffffff;
+        box-shadow: 0 0 15px #00d4ff;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- 3. 메인 비주얼 ---
 if os.path.exists(image_path):
-    # 이미지를 화면 너비에 맞춰 출력
     st.image(image_path, use_container_width=True)
 
-# 4. 타이틀 및 설명
-st.title(" ZION : ZERO INSIGHT ON")
-st.subheader("금융을 바라보는 올바른 시선")
+st.title("🛰️ ZION : ZERO INSIGHT ON")
+st.subheader("금융의 심연을 꿰뚫는 최후의 시선")
 st.markdown("---")
-#대형 클래스
+
+# [클래스 부분은 기존과 동일하되, UI 요소만 살짝 다듬습니다]
 class StockAnalyzer():
     def __init__(self, ticker):
         self.ticker = ticker
         self.df = None
 
     def fetch_data(self, start_date, end_date):
-        with st.spinner(f"[{self.ticker}] 데이터 수집 중..."):
+        with st.spinner(f"📡 [ZION] {self.ticker} 데이터 동기화 중..."):
             try:
                 data = yf.download(self.ticker, start=start_date, end=end_date)
                 if data.empty:
-                    st.error("수집된 데이터가 없습니다.")
+                    st.error("데이터 동기화 실패.")
                     return False
-                
-                # [추가] 멀티 인덱스라면 가장 윗 단계(Close, High 등)만 남기고 정리합니다.
                 if isinstance(data.columns, pd.MultiIndex):
                     data.columns = data.columns.get_level_values(0)
-                
                 self.df = data
-                st.success("데이터 수집 완료!")
                 return True
             except Exception as e:
-                st.error(f"데이터 수집 중 예외 발생: {e}")
+                st.error(f"연결 오류: {e}")
                 return False
-        
+
     def calculate_indicators(self):
         if self.df is None: return 
-        
         self.df['MA5'] = self.df['Close'].rolling(window=5).mean()
         self.df['MA20'] = self.df['Close'].rolling(window=20).mean()
-
         delta = self.df['Close'].diff()
         up = delta.clip(lower=0)
         down = -delta.clip(upper=0)
-
         avg_up = up.rolling(window=14).mean()
         avg_down = down.rolling(window=14).mean()
-        
         rs = avg_up / avg_down
         self.df['RSI'] = 100 - (100 / (1 + rs))
 
     def get_signals(self):
-        if self.df is None or 'RSI' not in self.df.columns: return
-
+        if self.df is None: return
         self.df['prev_MA5'] = self.df['MA5'].shift(1)
         self.df['prev_MA20'] = self.df['MA20'].shift(1)
         self.df['Signal'] = 0
-
-        # 1. 매수 신호
-        buy_cond = (self.df['prev_MA5'] < self.df['prev_MA20']) & \
-                   (self.df['MA5'] > self.df['MA20']) & \
-                   (self.df['RSI'] < 65)
+        buy_cond = (self.df['prev_MA5'] < self.df['prev_MA20']) & (self.df['MA5'] > self.df['MA20']) & (self.df['RSI'] < 65)
         self.df.loc[buy_cond, 'Signal'] = 1
-
-        # 2. 매도 신호
-        sell_cond = (self.df['prev_MA5'] > self.df['prev_MA20']) & \
-                    (self.df['MA5'] < self.df['MA20']) & \
-                    (self.df['RSI'] > 35)
+        sell_cond = (self.df['prev_MA5'] > self.df['prev_MA20']) & (self.df['MA5'] < self.df['MA20']) & (self.df['RSI'] > 35)
         self.df.loc[sell_cond, 'Signal'] = -1
-        
-        buy_count = sum(self.df['Signal']==1)
-        sell_count = sum(self.df['Signal']==-1)
-        st.info(f"신호 분석 완료: 🟢 매수 신호 {buy_count}건 | 🔴 매도 신호 {sell_count}건")
 
     def display_metrics(self):
-        if self.df is None or len(self.df) < 2: return
-
-        # 가장 최근 데이터와 이전 데이터 가져오기
         last_row = self.df.iloc[-1]
         prev_row = self.df.iloc[-2]
-
-        # float()를 씌워서 확실하게 숫자 하나만 뽑아옵니다.
-        try:
-            current_price = float(last_row['Close'])
-            prev_price = float(prev_row['Close'])
-            price_diff = current_price - prev_price
-            current_rsi = float(last_row['RSI'])
-        except (TypeError, ValueError):
-            # 데이터가 비어있거나 형식이 이상할 경우 대비
-            st.warning("데이터 형식이 올바르지 않습니다.")
-            return
-
+        current_price = float(last_row['Close'])
+        price_diff = current_price - float(prev_row['Close'])
+        
         m1, m2, m3 = st.columns(3)
-        
-        with m1:
-            st.metric(label="현재 주가", value=f"${current_price:.2f}", delta=f"{price_diff:.2f}")
-        
-        with m2:
-            rsi_status = "보통"
-            if current_rsi >= 70: rsi_status = "⚠️ 과매수 (위험)"
-            elif current_rsi <= 30: rsi_status = "✅ 과매도 (기회)"
-            st.metric(label="현재 RSI 점수", value=f"{current_rsi:.1f}", help="70 이상이면 과열, 30 이하면 저평가 상태입니다.")
-            st.caption(f"현재 시장 상태는 **{rsi_status}** 입니다.")
-
-        with m3:
-            last_signal = "신호 없음"
-            if last_row['Signal'] == 1: last_signal = "🟢 매수 추천"
-            elif last_row['Signal'] == -1: last_signal = "🔴 매도 추천"
-            st.metric(label="최근 분석 결과", value=last_signal)
+        m1.metric("CURRENT PRICE", f"${current_price:.2f}", f"{price_diff:.2f}")
+        m2.metric("RSI INDEX", f"{float(last_row['RSI']):.1f}")
+        m3.metric("LATEST SIGNAL", "BUY" if last_row['Signal']==1 else "SELL" if last_row['Signal']==-1 else "HOLD")
 
     def display_financials(self):
-        try:
-            ticker_obj = yf.Ticker(self.ticker)
-            
-            # [변경] 연간(financials) 대신 분기별(quarterly_financials) 데이터를 가져옵니다.
-            df_fin = ticker_obj.quarterly_financials
-            
-            if df_fin.empty:
-                st.warning("분기 재무 데이터를 불러올 수 없습니다.")
-                return
+        ticker_obj = yf.Ticker(self.ticker)
+        df_fin = ticker_obj.quarterly_financials
+        if not df_fin.empty:
+            st.dataframe(df_fin.style.highlight_max(axis=1, color='#004d4d'))
 
-            # 초보자도 이해하기 쉬운 핵심 항목 필터링
-            target_metrics = {
-                'Total Revenue': '매출액',
-                'Net Income': '당기순이익',
-                'Operating Income': '영업이익',
-                'EBITDA': '현금창출력(EBITDA)'
-            }
-            
-            available_metrics = [m for m in target_metrics.keys() if m in df_fin.index]
-            df_filtered = df_fin.loc[available_metrics].copy()
-            df_filtered.index = [target_metrics[m] for m in available_metrics]
-
-            # 가독성을 위해 10억 달러(B) 단위로 포맷팅
-            def format_billions(x):
-                if pd.isna(x) or x == 0: return "-"
-                return f"{x / 1e9:,.2f} B"
-
-            st.subheader(f"📊 {self.ticker} 최근 분기별 핵심 실적 (단위: 10억 달러)")
-            
-            # 테이블 출력
-            st.dataframe(df_filtered.map(format_billions), use_container_width=True)
-            
-            st.caption("※ 최근 4개 분기 실적이 왼쪽부터 순서대로 표시됩니다.")
-            
-        except Exception as e:
-            st.error(f"재무 데이터 분석 중 에러 발생: {e}")
     def visualize(self):
-        if self.df is None: return
-
-        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [3, 1]})
-
-        # 기본 차트 및 이평선
-        ax1.plot(self.df.index, self.df['Close'], label='Close', color='black', alpha=0.5)
-        ax1.plot(self.df.index, self.df['MA5'], label='MA5', color='red', alpha=0.8)
-        ax1.plot(self.df.index, self.df['MA20'], label='MA20', color='blue', alpha=0.8)
-
-        # 매수/매도 신호 표시
-        buy_points = self.df[self.df['Signal'] == 1]
-        ax1.plot(buy_points.index, buy_points['Close'], '^', markersize=10, color='red', label='BUY Signal')
-
-        sell_points = self.df[self.df['Signal'] == -1]
-        ax1.plot(sell_points.index, sell_points['Close'], 'v', markersize=10, color='blue', label='SELL Signal')
-
-        ax1.set_title(f"{self.ticker} Trading Signals")
+        # 다크모드 차트 설정
+        plt.style.use('dark_background')
+        fig, ax1 = plt.subplots(figsize=(12, 5))
+        ax1.plot(self.df.index, self.df['Close'], color='#ffffff', alpha=0.3)
+        ax1.plot(self.df.index, self.df['MA5'], color='#ff0055', label='Short-term')
+        ax1.plot(self.df.index, self.df['MA20'], color='#00d4ff', label='Long-term')
         ax1.legend()
-        ax1.grid(True, alpha=0.3)
-
-        # RSI 차트
-        ax2.plot(self.df.index, self.df['RSI'], color='purple', label='RSI')
-        ax2.axhline(70, color='red', linestyle='--', alpha=0.5)
-        ax2.axhline(30, color='blue', linestyle='--', alpha=0.5)
-        ax2.set_ylim(0, 100)
-        ax2.grid(True, alpha=0.3)
-
-        plt.tight_layout()
-        
-        # Streamlit 화면에 그래프 출력
         st.pyplot(fig)
 
-
-# === Streamlit UI 구성 ===
-st.set_page_config(page_title="zion", layout="wide")
-st.title("기술적 분석 및 매매 신호")
-st.markdown("이평선 골든/데드 크로스와 RSI 지표를 활용하여 매수/매도 기준을 제공합니다.")
-
-# 사이드바 입력 폼
+# --- 4. 사이드바 ---
 with st.sidebar:
-    st.header("설정")
-    ticker_input = st.text_input("종목 코드 (예: ORCL, AAPL, NVDA)", value="ORCL")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("시작일", datetime.date(2025, 1, 1))
-    with col2:
-        end_date = st.date_input("종료일", datetime.date.today())
-    
-    analyze_btn = st.button("분석 실행", type="primary", use_container_width=True)
+    st.header("🛸 CONTROL CENTER")
+    ticker_input = st.text_input("TARGET TICKER", value="ORCL")
+    start_date = st.date_input("START", datetime.date(2025, 1, 1))
+    end_date = st.date_input("END", datetime.date.today())
+    analyze_btn = st.button("EXECUTE ANALYSIS", type="primary", use_container_width=True)
 
-# 메인 화면 로직
+# --- 5. 메인 로직 (탭 시스템 적용) ---
 if analyze_btn:
-    if start_date >= end_date:
-        st.error("종료일이 시작일보다 빠를 수 없습니다.")
-    else:
-        # 1. 여기서 analyzer를 정의해줘야 합니다! (이 줄이 빠졌을 거예요)
-        analyzer = StockAnalyzer(ticker_input.upper())
+    analyzer = StockAnalyzer(ticker_input.upper())
+    if analyzer.fetch_data(start_date, end_date):
+        analyzer.calculate_indicators()
+        analyzer.get_signals()
         
-        # 2. 이제 analyzer를 사용할 수 있습니다.
-        if analyzer.fetch_data(start_date, end_date):
-            analyzer.calculate_indicators()
-            analyzer.get_signals()
-            
-            # 상단 지표 요약
-            st.subheader(f"🔍 {ticker_input.upper()} 현재 상황 요약")
-            analyzer.display_metrics() 
-            
-            st.markdown("---")
-            
-            # 메인 차트
+        analyzer.display_metrics()
+        
+        st.markdown("### 🛠️ SYSTEM DIAGNOSTICS")
+        # 탭 생성
+        tab1, tab2, tab3 = st.tabs(["📊 CHART ANALYSIS", "💼 FINANCIAL DATA", "📜 RAW LOGS"])
+        
+        with tab1:
             analyzer.visualize()
+        
+        with tab2:
+            analyzer.display_financials()
             
-            st.markdown("---")
-            
-            # 재무 제표 expander
-            with st.expander("💼 기업 펀더멘탈 (재무 데이터) 확인하기", expanded=True):
-                analyzer.display_financials()
-            
-            # 데이터 원본 보기
-            with st.expander("원본 데이터 보기 (최근 10일)"):
-                st.dataframe(analyzer.df.tail(10))
+        with tab3:
+            st.dataframe(analyzer.df.tail(20))
