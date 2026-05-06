@@ -99,7 +99,7 @@ class StockAnalyzer():
 
 # === Streamlit UI 구성 ===
 st.set_page_config(page_title="주식 기술적 분석 대시보드", layout="wide")
-st.title("📈 주식 기술적 분석 및 매매 신호 탐지기")
+st.title("기술적 분석 및 매매 신호 ")
 st.markdown("이평선 골든/데드 크로스와 RSI 지표를 활용하여 매수/매도 타이밍을 분석합니다.")
 
 # 사이드바 입력 폼
