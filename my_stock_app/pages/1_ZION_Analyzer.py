@@ -5,6 +5,22 @@ import pandas as pd
 import datetime
 from PIL import Image
 import os
+import json
+
+# 검색 기록을 저장할 파일 이름
+HISTORY_FILE = "search_history.json"
+
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r") as f:
+                return json.load(f)
+        except: return []
+    return []
+
+def save_history(history):
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f)
 
 # 1. 페이지 설정
 parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -231,35 +247,52 @@ class StockAnalyzer():
         plt.tight_layout()
         st.pyplot(fig)
 
-# --- 실행 로직 ---
+# --- 사이드바 및 히스토리 로직 ---
 with st.sidebar:
     st.header("CONTROL PANEL")
-    ticker_input = st.text_input("종목 코드", value="ORCL").upper()
+    
+    # 1. 히스토리 초기화 및 세션 관리
+    if 'history' not in st.session_state:
+        st.session_state.history = load_history()
+    
+    if 'ticker_val' not in st.session_state:
+        st.session_state.ticker_val = "ORCL"
+
+    # 2. 종목 입력칸 (세션 값을 연동하여 클릭 시 자동 입력되게 함)
+    ticker_input = st.text_input("종목 코드", value=st.session_state.ticker_val).upper()
+    
     col1, col2 = st.columns(2)
     with col1:
         start_d = st.date_input("시작일", datetime.date(2025, 1, 1))
     with col2:
         end_d = st.date_input("종료일", datetime.date.today())
+    
     analyze_btn = st.button("SYSTEM START", type="primary", use_container_width=True)
 
-if analyze_btn:
-    analyzer = StockAnalyzer(ticker_input)
-    if analyzer.fetch_data(start_d, end_d):
-        analyzer.calculate_indicators()
-        analyzer.get_signals()
-        
-        st.title(f"{ticker_input} DIAGNOSTICS")
-        analyzer.display_metrics()
-        
-        st.write("---")
-        
-        # 탭 구성
-        tab1, tab2, tab3 = st.tabs(["CHART ANALYSIS", "FINANCIAL DATA", "RAW LOGS"])
-        
-        with tab1:
-            analyzer.visualize()
-        with tab2:
-            st.subheader("분기별 실적 요약")
-            analyzer.display_financials()
-        with tab3:
-            st.dataframe(analyzer.df.tail(20), use_container_width=True)
+    # 3. 분석 실행 시 히스토리에 추가
+    if analyze_btn:
+        if ticker_input not in st.session_state.history:
+            st.session_state.history.insert(0, ticker_input) # 맨 앞에 추가
+            save_history(st.session_state.history)
+        # 실제 분석 로직은 이 아래에 위치하게 됩니다.
+
+    # 4. 최근 검색 기록 리스트 표시
+    st.write("---")
+    st.subheader("최근 검색 기록")
+    
+    if not st.session_state.history:
+        st.caption("검색 기록이 없습니다.")
+    else:
+        for h_ticker in st.session_state.history[:10]: # 최근 10개만 표시
+            h_col1, h_col2 = st.columns([4, 1])
+            
+            # 종목 클릭 시 해당 종목으로 입력창 변경
+            if h_col1.button(f"{h_ticker}", key=f"hist_{h_ticker}", use_container_width=True):
+                st.session_state.ticker_val = h_ticker
+                st.rerun() # 화면을 다시 그려서 입력창 값을 바꿈
+            
+            # 삭제 버튼 (쓰레기통)
+            if h_col2.button("🗑️", key=f"del_{h_ticker}"):
+                st.session_state.history.remove(h_ticker)
+                save_history(st.session_state.history)
+                st.rerun() # 삭제 후 즉시 반영
