@@ -128,15 +128,24 @@ class StockAnalyzer():
     def display_financials(self):
         try:
             ticker_obj = yf.Ticker(self.ticker)
-            df_fin = ticker_obj.quarterly_financials # 분기별 데이터
             
-            if df_fin.empty:
+            # 1. 세 가지 재무제표를 모두 가져와서 하나로 합치기
+            # yfinance는 항목별로 표가 나누어져 있어 합치는 과정이 필요합니다.
+            df_inc = ticker_obj.quarterly_financials     # 손익계산서
+            df_bal = ticker_obj.quarterly_balance_sheet # 대차대조표
+            df_cf  = ticker_obj.quarterly_cashflow      # 현금흐름표
+            
+            # 데이터가 하나라도 없으면 중단
+            if df_inc.empty and df_bal.empty and df_cf.empty:
                 st.warning("재무 데이터를 불러올 수 없습니다.")
                 return
 
+            # 모든 데이터를 하나의 표로 통합
+            df_all = pd.concat([df_inc, df_bal, df_cf])
+
+            # 2. 투자자용 핵심 지표 맵핑 (Keys가 정확해야 함)
             target_metrics = {
-                
-                # 기존 수익성 지표
+                # 수익성 (Income Statement)
                 'Total Revenue': '매출액',
                 'Gross Profit': '매출총이익',
                 'Operating Income': '영업이익',
@@ -144,22 +153,41 @@ class StockAnalyzer():
                 'EBITDA': 'EBITDA(현금창출력)',
                 'Basic EPS': '주당순이익(EPS)',
                 
-                # 안정성 지표
+                # 안정성 (Balance Sheet)
                 'Total Assets': '총 자산',
                 'Total Liabilities Net Minority Interest': '총 부채',
                 'Total Equity Gross Minority Interest': '총 자본',
                 'Total Debt': '총 차입금',
                 'Cash And Cash Equivalents': '현금성 자산',
                 
-                # 현금 흐름
+                # 현금 흐름 (Cash Flow)
                 'Operating Cash Flow': '영업현금흐름',
                 'Free Cash Flow': '잉여현금흐름(FCF)',
                 'Capital Expenditure': '재투자비용(CAPEX)'
             }
             
-            available_metrics = [m for m in target_metrics.keys() if m in df_fin.index]
-            df_filtered = df_fin.loc[available].copy()
-            df_filtered.index = [target_metrics[m] for m in available]
+            # 존재하는 지표만 필터링 (오타 수정됨: available_metrics 사용)
+            available_metrics = [m for m in target_metrics.keys() if m in df_all.index]
+            
+            if not available_metrics:
+                st.info("선택한 지표 중 표시 가능한 데이터가 없습니다.")
+                return
+
+            df_filtered = df_all.loc[available_metrics].copy()
+            df_filtered.index = [target_metrics[m] for m in available_metrics]
+
+            # 3. 단위 변환 및 출력
+            def format_billions(x):
+                if pd.isna(x) or x == 0: return "-"
+                # EPS는 단위 변환을 하지 않고 그대로 표시 (달러 단위이므로)
+                if x < 1000 and x > -1000: return f"{x:.2f}" 
+                return f"{x / 1e9:,.2f} B"
+
+            st.dataframe(df_filtered.map(format_billions), use_container_width=True)
+            st.caption("※ B = 10억 달러(Billion USD). 주당순이익(EPS)은 달러($) 단위 그대로 표시됩니다.")
+            
+        except Exception as e:
+            st.error(f"재무 데이터 통합 분석 중 오류 발생: {e}")
 
             # 10억 달러(B) 단위 포맷팅
             def format_billions(x):
