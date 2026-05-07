@@ -22,6 +22,21 @@ def save_history(history):
     with open(HISTORY_FILE, "w") as f:
         json.dump(history, f)
 
+# --- 0. 데이터 관리 및 콜백 함수 ---
+def on_ticker_enter():
+    # 입력창(key="ticker_input_key")의 값을 가져옴
+    input_val = st.session_state.ticker_input_key.upper().strip()
+    if input_val:
+        # 1. 히스토리에 즉시 추가 및 저장
+        if input_val not in st.session_state.history:
+            st.session_state.history.insert(0, input_val)
+            save_history(st.session_state.history)
+        
+        # 2. 현재 입력값을 세션에 동기화
+        st.session_state.ticker_val = input_val
+        # 3. 분석 실행 신호 ON
+        st.session_state.run_analysis = True
+
 # --- 1. 페이지 설정 및 아이콘 ---
 # pages 폴더 안에 있으므로 부모 경로를 찾아 이미지 로드
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -131,15 +146,24 @@ class StockAnalyzer():
 # --- 4. 사이드바 및 히스토리 로직 ---
 if 'history' not in st.session_state: st.session_state.history = load_history()
 if 'ticker_val' not in st.session_state: st.session_state.ticker_val = "ORCL"
-# 추가: 분석 실행 상태를 관리하는 세션 변수
 if 'run_analysis' not in st.session_state: st.session_state.run_analysis = False
 
 with st.sidebar:
     st.header("CONTROL PANEL")
-    ticker_input = st.text_input("종목 코드", value=st.session_state.ticker_val).upper()
+    
+    # [핵심] on_change를 사용하여 엔터 시 on_ticker_enter 함수 실행
+    ticker_input = st.text_input(
+        "종목 코드", 
+        value=st.session_state.ticker_val, 
+        key="ticker_input_key", # 콜백에서 참조할 키
+        on_change=on_ticker_enter # 엔터 치면 이 함수로 바로 점프
+    ).upper()
+    
     col1, col2 = st.columns(2)
     start_d = col1.date_input("시작일", datetime.date(2025, 1, 1))
     end_d = col2.date_input("종료일", datetime.date.today())
+    
+    # 버튼을 눌러도 분석이 실행되도록 유지
     analyze_btn = st.button("SYSTEM START", type="primary", use_container_width=True)
 
     st.write("---")
@@ -147,10 +171,10 @@ with st.sidebar:
     for h_ticker in st.session_state.history[:10]:
         h_col1, h_col2 = st.columns([4, 1])
         
-        # [수정된 부분] 클릭 시 입력값 변경 + 분석 실행 신호 ON
+        # 기록 클릭 시 로직
         if h_col1.button(f"{h_ticker}", key=f"h_{h_ticker}", use_container_width=True):
             st.session_state.ticker_val = h_ticker
-            st.session_state.run_analysis = True # 분석 실행 신호 활성화
+            st.session_state.run_analysis = True
             st.rerun()
             
         if h_col2.button("🗑️", key=f"d_{h_ticker}"):
@@ -159,30 +183,16 @@ with st.sidebar:
             st.rerun()
 
 # --- 5. 메인 분석 실행부 ---
-# 물리 버튼을 눌렀거나, 히스토리에서 클릭 신호가 왔을 때 실행
+# 엔터를 쳤거나(run_analysis), 버튼을 눌렀을 때 실행
 if analyze_btn or st.session_state.run_analysis:
+    st.session_state.run_analysis = False # 신호 초기화
     
-    # 분석 시작 전, 신호는 다시 꺼줍니다 (무한 반복 방지)
-    st.session_state.run_analysis = False
+    # 현재 입력창의 값 혹은 세션에 저장된 값 사용
+    target_ticker = st.session_state.ticker_val
     
-    # 입력된 종목 코드로 최종 확정 (히스토리 클릭 시에는 이미 ticker_val에 저장됨)
-    target_ticker = ticker_input
-    
-    # 히스토리 업데이트 (중복 방지 및 최신화)
-    if target_ticker not in st.session_state.history:
-        st.session_state.history.insert(0, target_ticker)
-        save_history(st.session_state.history)
-    
-    # 분석 실행
+    # 분석 실행 (이하 기존 코드와 동일)
     analyzer = StockAnalyzer(target_ticker)
     if analyzer.fetch_data(start_d, end_d):
         analyzer.calculate_indicators()
         analyzer.get_signals()
-        
-        st.title(f"{target_ticker} DIAGNOSTICS")
-        analyzer.display_metrics()
-        
-        tab1, tab2, tab3 = st.tabs(["CHART", "FINANCIAL", "LOGS"])
-        with tab1: analyzer.visualize()
-        with tab2: analyzer.display_financials()
-        with tab3: st.dataframe(analyzer.df.tail(20))
+        # ... (중략) ...
