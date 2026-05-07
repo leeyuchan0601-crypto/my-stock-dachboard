@@ -1,8 +1,16 @@
 import streamlit as st
+from PIL import Image
 import os
 
-# 페이지 설정
-st.set_page_config(page_title="ZION | Gateway", page_icon="🛰️", layout="wide")
+#페이지 설정
+image_path = "ark_base.png"
+
+if os.path.exists(image_path):
+    img = Image.open(image_path)
+    st.set_page_config(page_title="ZION | Gateway", page_icon=img, layout="wide")
+else:
+    # 이미지가 없을 경우
+    st.set_page_config(page_title="ZION | Gateway", page_icon="🛰️", layout="wide")
 
 # CSS로 하이테크 스타일링
 st.markdown("""
@@ -31,10 +39,14 @@ image_path = "ark_base.png"
 if os.path.exists(image_path):
     st.image(image_path, use_container_width=True)
 
-st.title("🛰️ SYSTEM ZION")
+st.title("ZION")
 st.subheader("금융의 심연을 꿰뚫는 최후의 시선")
 st.write("---")
 
 # 입장 버튼
-if st.button("🚀 ENTER ZION ANALYZER"):
+if st.button("ENTER ZION ANALYZER"):
     st.switch_page("pages/1_ZION_Analyzer.py")
+"""
+if st.button("ENTER ZION PORTFOLIO"):
+    st.switch_page("pages/pass")
+"""
