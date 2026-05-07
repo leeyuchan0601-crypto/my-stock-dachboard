@@ -135,7 +135,7 @@ if 'ticker_val' not in st.session_state: st.session_state.ticker_val = "ORCL"
 if 'run_analysis' not in st.session_state: st.session_state.run_analysis = False
 
 with st.sidebar:
-    st.header("🛸 CONTROL PANEL")
+    st.header("CONTROL PANEL")
     ticker_input = st.text_input("종목 코드", value=st.session_state.ticker_val).upper()
     col1, col2 = st.columns(2)
     start_d = col1.date_input("시작일", datetime.date(2025, 1, 1))
