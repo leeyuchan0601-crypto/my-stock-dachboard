@@ -131,6 +131,8 @@ class StockAnalyzer():
 # --- 4. 사이드바 및 히스토리 로직 ---
 if 'history' not in st.session_state: st.session_state.history = load_history()
 if 'ticker_val' not in st.session_state: st.session_state.ticker_val = "ORCL"
+# 추가: 분석 실행 상태를 관리하는 세션 변수
+if 'run_analysis' not in st.session_state: st.session_state.run_analysis = False
 
 with st.sidebar:
     st.header("🛸 CONTROL PANEL")
@@ -144,27 +146,40 @@ with st.sidebar:
     st.subheader("최근 검색 기록")
     for h_ticker in st.session_state.history[:10]:
         h_col1, h_col2 = st.columns([4, 1])
+        
+        # [수정된 부분] 클릭 시 입력값 변경 + 분석 실행 신호 ON
         if h_col1.button(f"{h_ticker}", key=f"h_{h_ticker}", use_container_width=True):
             st.session_state.ticker_val = h_ticker
+            st.session_state.run_analysis = True # 분석 실행 신호 활성화
             st.rerun()
+            
         if h_col2.button("🗑️", key=f"d_{h_ticker}"):
             st.session_state.history.remove(h_ticker)
             save_history(st.session_state.history)
             st.rerun()
 
 # --- 5. 메인 분석 실행부 ---
-if analyze_btn:
-    # 히스토리 업데이트
-    if ticker_input not in st.session_state.history:
-        st.session_state.history.insert(0, ticker_input)
+# 물리 버튼을 눌렀거나, 히스토리에서 클릭 신호가 왔을 때 실행
+if analyze_btn or st.session_state.run_analysis:
+    
+    # 분석 시작 전, 신호는 다시 꺼줍니다 (무한 반복 방지)
+    st.session_state.run_analysis = False
+    
+    # 입력된 종목 코드로 최종 확정 (히스토리 클릭 시에는 이미 ticker_val에 저장됨)
+    target_ticker = ticker_input
+    
+    # 히스토리 업데이트 (중복 방지 및 최신화)
+    if target_ticker not in st.session_state.history:
+        st.session_state.history.insert(0, target_ticker)
         save_history(st.session_state.history)
     
-    # 분석 객체 생성 및 실행
-    analyzer = StockAnalyzer(ticker_input)
+    # 분석 실행
+    analyzer = StockAnalyzer(target_ticker)
     if analyzer.fetch_data(start_d, end_d):
         analyzer.calculate_indicators()
         analyzer.get_signals()
-        st.title(f"{ticker_input} DIAGNOSTICS")
+        
+        st.title(f"{target_ticker} DIAGNOSTICS")
         analyzer.display_metrics()
         
         tab1, tab2, tab3 = st.tabs(["CHART", "FINANCIAL", "LOGS"])
