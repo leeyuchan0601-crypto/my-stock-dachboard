@@ -6,15 +6,15 @@ import datetime
 from PIL import Image
 import os
 
-#페이지 설정
-image_path = "ark_base.png"
+# 1. 페이지 설정
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+icon_path = os.path.join(parent_dir, "ark_base.png")
 
-if os.path.exists(image_path):
-    img = Image.open(image_path)
-    st.set_page_config(page_title="ZION ANALIYZER", page_icon=img, layout="wide")
+if os.path.exists(icon_path):
+    img = Image.open(icon_path)
+    st.set_page_config(page_title="ZION | Analyzer", page_icon=img, layout="wide")
 else:
-    # 이미지가 없을 경우
-    st.set_page_config(page_title="ZION ANALIYZER", page_icon="🛰️", layout="wide")
+    st.set_page_config(page_title="ZION | Analyzer", page_icon="💱", layout="wide")
 
 # 2. 하이테크 사이버펑크 CSS 스타일링
 st.markdown("""
