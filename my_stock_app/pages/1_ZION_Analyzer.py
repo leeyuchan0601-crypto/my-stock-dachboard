@@ -6,8 +6,15 @@ import datetime
 from PIL import Image
 import os
 
-# 1. 페이지 설정 (분석기 전용)
-st.set_page_config(page_title="ZION Analyzer", page_icon="📈", layout="wide")
+#페이지 설정
+image_path = "ark_base.png"
+
+if os.path.exists(image_path):
+    img = Image.open(image_path)
+    st.set_page_config(page_title="ZION ANALIYZER", page_icon=img, layout="wide")
+else:
+    # 이미지가 없을 경우
+    st.set_page_config(page_title="ZION ANALIYZER", page_icon="🛰️", layout="wide")
 
 # 2. 하이테크 사이버펑크 CSS 스타일링
 st.markdown("""
@@ -128,13 +135,29 @@ class StockAnalyzer():
                 return
 
             target_metrics = {
+                
+                # 기존 수익성 지표
                 'Total Revenue': '매출액',
-                'Net Income': '당기순이익',
+                'Gross Profit': '매출총이익',
                 'Operating Income': '영업이익',
-                'EBITDA': '현금창출력(EBITDA)'
+                'Net Income': '당기순이익',
+                'EBITDA': 'EBITDA(현금창출력)',
+                'Basic EPS': '주당순이익(EPS)',
+                
+                # 안정성 지표
+                'Total Assets': '총 자산',
+                'Total Liabilities Net Minority Interest': '총 부채',
+                'Total Equity Gross Minority Interest': '총 자본',
+                'Total Debt': '총 차입금',
+                'Cash And Cash Equivalents': '현금성 자산',
+                
+                # 현금 흐름
+                'Operating Cash Flow': '영업현금흐름',
+                'Free Cash Flow': '잉여현금흐름(FCF)',
+                'Capital Expenditure': '재투자비용(CAPEX)'
             }
             
-            available = [m for m in target_metrics.keys() if m in df_fin.index]
+            available_metrics = [m for m in target_metrics.keys() if m in df_fin.index]
             df_filtered = df_fin.loc[available].copy()
             df_filtered.index = [target_metrics[m] for m in available]
 
@@ -182,7 +205,7 @@ class StockAnalyzer():
 
 # --- 실행 로직 ---
 with st.sidebar:
-    st.header("🛸 CONTROL PANEL")
+    st.header("CONTROL PANEL")
     ticker_input = st.text_input("종목 코드", value="ORCL").upper()
     col1, col2 = st.columns(2)
     with col1:
@@ -197,13 +220,13 @@ if analyze_btn:
         analyzer.calculate_indicators()
         analyzer.get_signals()
         
-        st.title(f"🛰️ {ticker_input} DIAGNOSTICS")
+        st.title(f"{ticker_input} DIAGNOSTICS")
         analyzer.display_metrics()
         
         st.write("---")
         
         # 탭 구성
-        tab1, tab2, tab3 = st.tabs(["📊 CHART ANALYSIS", "💼 FINANCIAL DATA", "📜 RAW LOGS"])
+        tab1, tab2, tab3 = st.tabs(["CHART ANALYSIS", "FINANCIAL DATA", "RAW LOGS"])
         
         with tab1:
             analyzer.visualize()
