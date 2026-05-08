@@ -4,8 +4,42 @@ import pandas as pd
 from PIL import Image
 import os
 
-# --- 1. 페이지 설정 및 아이콘 ---
-# pages 폴더 내부에 있으므로 상위 폴더의 이미지를 참조합니다.
+# --- 0. 환율 동기화 및 계산 로직 ---
+@st.cache_data(ttl=600)
+def get_rate(ticker):
+    try:
+        data = yf.Ticker(ticker).history(period="1d")
+        if not data.empty:
+            return data['Close'].iloc[-1]
+        return None
+    except:
+        return None
+
+def sync_foreign_to_krw():
+    # 외화 입력 시 원화 업데이트
+    rate = st.session_state.current_rate
+    is_jpy = "JPY" in st.session_state.selected_curr
+    base_rate = rate * 100 if is_jpy else rate
+    
+    amount = st.session_state.foreign_input
+    if is_jpy:
+        st.session_state.krw_input = (amount / 100) * base_rate
+    else:
+        st.session_state.krw_input = amount * base_rate
+
+def sync_krw_to_foreign():
+    # 원화 입력 시 외화 업데이트
+    rate = st.session_state.current_rate
+    is_jpy = "JPY" in st.session_state.selected_curr
+    base_rate = rate * 100 if is_jpy else rate
+    
+    amount = st.session_state.krw_input
+    if is_jpy:
+        st.session_state.foreign_input = (amount / base_rate) * 100
+    else:
+        st.session_state.foreign_input = amount / base_rate
+
+# --- 1. 페이지 설정 ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 icon_path = os.path.join(parent_dir, "ark_base.png")
@@ -16,121 +50,97 @@ if os.path.exists(icon_path):
 else:
     st.set_page_config(page_title="ZION | Currency", page_icon="💱", layout="wide")
 
-# --- 2. 하이테크 사이버펑크 스타일링 ---
+# --- 2. 사이버펑크 스타일링 ---
 st.markdown("""
     <style>
-    /* 입력창 스타일 */
     .stNumberInput > div > div > input {
         background-color: rgba(0, 212, 255, 0.05);
         color: #00d4ff;
         border: 1px solid #00d4ff;
-        font-size: 24px;
-        font-weight: bold;
-    }
-    /* 결과 카드 스타일 */
-    .converter-card {
-        padding: 40px;
-        background-color: rgba(0, 212, 255, 0.05);
-        border: 2px solid rgba(0, 212, 255, 0.3);
-        border-radius: 20px;
-        text-align: center;
-        box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
-    }
-    .result-val {
-        color: #00d4ff;
-        font-size: 48px;
+        font-size: 32px !important;
         font-weight: 900;
-        margin-bottom: 10px;
+        height: 70px;
+        text-align: center;
     }
-    .sub-info {
-        color: #888;
-        font-size: 16px;
+    .curr-label {
+        font-size: 20px;
+        color: #00d4ff;
+        font-weight: bold;
+        margin-bottom: 10px;
+        text-align: center;
+    }
+    .sync-icon {
+        font-size: 40px;
+        text-align: center;
+        margin-top: 45px;
+        color: rgba(0, 212, 255, 0.5);
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. 실시간 환율 데이터 함수 (10분 캐싱) ---
-@st.cache_data(ttl=600)
-def get_exchange_rate(ticker):
-    try:
-        data = yf.Ticker(ticker).history(period="1d")
-        if not data.empty:
-            return data['Close'].iloc[-1]
-        return None
-    except:
-        return None
-
-# --- 4. 메인 UI ---
-st.title("🛰️ ZION : TWO-WAY CURRENCY TERMINAL")
+st.title("🛰️ ZION : DUAL-SYNC CURRENCY TERMINAL")
 st.write("---")
 
-# 통화 목록 및 티커
+# --- 3. 세션 상태 초기화 ---
 currencies = {
-    "USD (미국 달러)": {"ticker": "USDKRW=X", "unit": "달러", "symbol": "$"},
-    "JPY (일본 엔)": {"ticker": "JPYKRW=X", "unit": "엔", "symbol": "¥"},
-    "EUR (유로)": {"ticker": "EURKRW=X", "unit": "유로", "symbol": "€"},
-    "CNY (중국 위안)": {"ticker": "CNYKRW=X", "unit": "위안", "symbol": "¥"},
-    "GBP (영국 파운드)": {"ticker": "GBPKRW=X", "unit": "파운드", "symbol": "£"}
+    "USD (미국 달러)": {"ticker": "USDKRW=X", "unit": "USD"},
+    "JPY (일본 엔)": {"ticker": "JPYKRW=X", "unit": "JPY"},
+    "EUR (유로)": {"ticker": "EURKRW=X", "unit": "EUR"},
+    "CNY (중국 위안)": {"ticker": "CNYKRW=X", "unit": "CNY"}
 }
 
-col1, col2 = st.columns([1, 1.5])
+if 'foreign_input' not in st.session_state: st.session_state.foreign_input = 1.0
+if 'krw_input' not in st.session_state: st.session_state.krw_input = 1350.0 # 초기 대략값
+if 'selected_curr' not in st.session_state: st.session_state.selected_curr = "USD (미국 달러)"
 
-with col1:
-    st.subheader("🛠️ CONVERSION SETTING")
-    
-    # 1. 변환 방향 선택
-    mode = st.radio(
-        "변환 방향 선택",
-        ["외화 ➔ 한국 돈(KRW)", "한국 돈(KRW) ➔ 외화"],
-        horizontal=True
-    )
-    
+# --- 4. 메인 UI ---
+col_sel, _ = st.columns([2, 3])
+with col_sel:
+    new_curr = st.selectbox("변환 대상 통화 선택", list(currencies.keys()), key="selected_curr")
+    rate = get_rate(currencies[new_curr]['ticker'])
+    st.session_state.current_rate = rate
+
+if rate:
     st.write("")
+    c1, c2, c3 = st.columns([5, 1, 5])
     
-    # 2. 통화 선택
-    selected_name = st.selectbox("대상 통화", list(currencies.keys()))
-    curr_info = currencies[selected_name]
-    
-    # 3. 금액 입력
-    input_label = "금액 입력 (" + ("KRW" if "한국 돈" in mode else curr_info['unit']) + ")"
-    amount = st.number_input(input_label, min_value=0.0, value=1000.0 if "한국 돈" in mode else 1.0, step=100.0 if "한국 돈" in mode else 1.0)
+    with c1:
+        st.markdown(f'<div class="curr-label">{new_curr}</div>', unsafe_allow_html=True)
+        st.number_input(
+            "외화 입력",
+            key="foreign_input",
+            on_change=sync_foreign_to_krw,
+            label_visibility="collapsed"
+        )
+        
+    with c2:
+        st.markdown('<div class="sync-icon">⇆</div>', unsafe_allow_html=True)
+        
+    with c3:
+        st.markdown('<div class="curr-label">KRW (대한민국 원)</div>', unsafe_allow_html=True)
+        st.number_input(
+            "원화 입력",
+            key="krw_input",
+            on_change=sync_krw_to_foreign,
+            label_visibility="collapsed"
+        )
 
-with col2:
-    rate = get_exchange_rate(curr_info['ticker'])
+    st.write("---")
+    # 현재 환율 정보 요약
+    is_jpy = "JPY" in new_curr
+    display_rate = rate * 100 if is_jpy else rate
+    unit_text = "100엔" if is_jpy else f"1 {currencies[new_curr]['unit']}"
     
-    if rate:
-        # 엔화(JPY)는 100엔당 원화로 환산되는 특수성 처리
-        is_jpy = "JPY" in selected_name
-        base_rate = rate * 100 if is_jpy else rate
-        
-        st.subheader("💸 CALCULATION RESULT")
-        
-        if "한국 돈" in mode:
-            # KRW -> Foreign
-            # 엔화는 원화/환율 * 100
-            result = (amount / base_rate) * 100 if is_jpy else (amount / base_rate)
-            res_unit = curr_info['unit']
-            res_symbol = curr_info['symbol']
-            display_text = f"{res_symbol} {result:,.2f} {res_unit}"
-            rate_info = f"적용 환율: 1 {res_unit} = {base_rate:,.2f} KRW"
-        else:
-            # Foreign -> KRW
-            result = (amount / 100) * base_rate if is_jpy else amount * base_rate
-            display_text = f"{result:,.0f} 원 (KRW)"
-            rate_info = f"적용 환율: 1 {curr_info['unit']} = {base_rate:,.2f} KRW"
+    st.subheader("📊 실시간 시장 지표")
+    m1, m2, m3 = st.columns(3)
+    m1.metric("기준 환율", f"{display_rate:,.2f} KRW", help=f"{unit_text} 당 가격")
+    m2.metric("통화 기호", currencies[new_curr]['unit'])
+    m3.metric("데이터 소스", "Yahoo Finance")
+    
+    st.caption(f"🕒 최종 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-        # 결과 카드 출력
-        st.markdown(f"""
-            <div class="converter-card">
-                <div class="result-val">{display_text}</div>
-                <div class="sub-info">{rate_info}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.write("")
-        st.caption(f"🕒 데이터 동기화: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')} (Yahoo Finance)")
-    else:
-        st.error("📡 통신 오류: 환율 데이터를 가져올 수 없습니다.")
+else:
+    st.error("📡 외계 신호 간섭(데이터 로드 실패): 환율 정보를 가져올 수 없습니다.")
 
 st.write("---")
-st.info("💡 일본 엔(JPY)의 경우 시장 관행에 따라 100엔 단위를 기준으로 계산되었습니다.")
+st.info("💡 입력창에 숫자를 치고 엔터를 누르면 반대편 통화가 즉시 동기화됩니다.")
