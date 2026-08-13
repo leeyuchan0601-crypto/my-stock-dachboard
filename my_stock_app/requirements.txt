@@ -4,3 +4,5 @@ pandas
 matplotlib
 Pillow
 plotly
+from streamlit_autorun import autorun
+autorun(interval=10000)
