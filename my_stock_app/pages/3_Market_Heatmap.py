@@ -29,7 +29,6 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. 코스피 확장 종목 데이터베이스 (약 50개 종목) ---
 KOSPI_STOCKS = [
     # 반도체/IT/전자
     {"ticker": "005930.KS", "name": "삼성전자", "sector": "반도체/IT", "weight": 350},
@@ -103,71 +102,74 @@ KOSPI_STOCKS = [
     {"ticker": "028260.KS", "name": "삼성물산", "sector": "철강/건설/인프라", "weight": 25}
 ]
 
+# 아까 발생했던 NameError 방지를 위한 동기화
+KOSPI_MARKET_DATA = KOSPI_STOCKS
+
 US_MARKET_DATA = [
     # Semiconductors & Hardware
-    {"ticker": "NVDA", "name": "NVIDIA", "sector": "Semiconductors", "weight": 310},
-    {"ticker": "AVGO", "name": "Broadcom", "sector": "Semiconductors", "weight": 85},
+    {"ticker": "NVDA", "name": "NVDA", "sector": "Semiconductors", "weight": 310},
+    {"ticker": "AVGO", "name": "AVGO", "sector": "Semiconductors", "weight": 85},
     {"ticker": "AMD", "name": "AMD", "sector": "Semiconductors", "weight": 25},
-    {"ticker": "QCOM", "name": "Qualcomm", "sector": "Semiconductors", "weight": 22},
-    {"ticker": "INTC", "name": "Intel", "sector": "Semiconductors", "weight": 12},
-    {"ticker": "MU", "name": "Micron", "sector": "Semiconductors", "weight": 15},
-    {"ticker": "AMAT", "name": "Applied Materials", "sector": "Semiconductors", "weight": 18},
-    {"ticker": "LRCX", "name": "Lam Research", "sector": "Semiconductors", "weight": 16},
+    {"ticker": "QCOM", "name": "QCOM", "sector": "Semiconductors", "weight": 22},
+    {"ticker": "INTC", "name": "INTC", "sector": "Semiconductors", "weight": 12},
+    {"ticker": "MU", "name": "MU", "sector": "Semiconductors", "weight": 15},
+    {"ticker": "AMAT", "name": "AMAT", "sector": "Semiconductors", "weight": 18},
+    {"ticker": "LRCX", "name": "LRCX", "sector": "Semiconductors", "weight": 16},
 
     # Consumer Tech & Software/Cloud
-    {"ticker": "AAPL", "name": "Apple", "sector": "Consumer Tech", "weight": 330},
-    {"ticker": "MSFT", "name": "Microsoft", "sector": "Software/Cloud", "weight": 310},
-    {"ticker": "ORCL", "name": "Oracle", "sector": "Software/Cloud", "weight": 45},
-    {"ticker": "CRM", "name": "Salesforce", "sector": "Software/Cloud", "weight": 30},
-    {"ticker": "PLTR", "name": "Palantir", "sector": "Software/Cloud", "weight": 20},
-    {"ticker": "ADBE", "name": "Adobe", "sector": "Software/Cloud", "weight": 22},
-    {"ticker": "NOW", "name": "ServiceNow", "sector": "Software/Cloud", "weight": 18},
-    {"ticker": "INTU", "name": "Intuit", "sector": "Software/Cloud", "weight": 17},
+    {"ticker": "AAPL", "name": "AAPL", "sector": "Consumer Tech", "weight": 330},
+    {"ticker": "MSFT", "name": "MSFT", "sector": "Software/Cloud", "weight": 310},
+    {"ticker": "ORCL", "name": "ORCL", "sector": "Software/Cloud", "weight": 45},
+    {"ticker": "CRM", "name": "CRM", "sector": "Software/Cloud", "weight": 30},
+    {"ticker": "PLTR", "name": "PLTR", "sector": "Software/Cloud", "weight": 20},
+    {"ticker": "ADBE", "name": "ADBE", "sector": "Software/Cloud", "weight": 22},
+    {"ticker": "NOW", "name": "NOW", "sector": "Software/Cloud", "weight": 18},
+    {"ticker": "INTU", "name": "INTU", "sector": "Software/Cloud", "weight": 17},
 
     # Communication & Search & Social
-    {"ticker": "GOOGL", "name": "Alphabet (Google)", "sector": "Communication/Search", "weight": 210},
-    {"ticker": "META", "name": "Meta", "sector": "Communication/Social", "weight": 140},
-    {"ticker": "NFLX", "name": "Netflix", "sector": "Communication/Media", "weight": 38},
-    {"ticker": "DIS", "name": "Disney", "sector": "Communication/Media", "weight": 20},
-    {"ticker": "TMUS", "name": "T-Mobile", "sector": "Communication/Telecom", "weight": 22},
+    {"ticker": "GOOGL", "name": "GOOGL", "sector": "Communication/Search", "weight": 210},
+    {"ticker": "META", "name": "META", "sector": "Communication/Social", "weight": 140},
+    {"ticker": "NFLX", "name": "NFLX", "sector": "Communication/Media", "weight": 38},
+    {"ticker": "DIS", "name": "DIS", "sector": "Communication/Media", "weight": 20},
+    {"ticker": "TMUS", "name": "TMUS", "sector": "Communication/Telecom", "weight": 22},
 
     # E-Commerce & Retail & Auto
-    {"ticker": "AMZN", "name": "Amazon", "sector": "E-Commerce/Cloud", "weight": 190},
-    {"ticker": "TSLA", "name": "Tesla", "sector": "Automotive/EV", "weight": 75},
-    {"ticker": "WMT", "name": "Walmart", "sector": "Consumer Retail", "weight": 55},
-    {"ticker": "COST", "name": "Costco", "sector": "Consumer Retail", "weight": 42},
-    {"ticker": "HD", "name": "Home Depot", "sector": "Consumer Retail", "weight": 38},
-    {"ticker": "TGT", "name": "Target", "sector": "Consumer Retail", "weight": 10},
+    {"ticker": "AMZN", "name": "AMZN", "sector": "E-Commerce/Cloud", "weight": 190},
+    {"ticker": "TSLA", "name": "TSLA", "sector": "Automotive/EV", "weight": 75},
+    {"ticker": "WMT", "name": "WMT", "sector": "Consumer Retail", "weight": 55},
+    {"ticker": "COST", "name": "COST", "sector": "Consumer Retail", "weight": 42},
+    {"ticker": "HD", "name": "HD", "sector": "Consumer Retail", "weight": 38},
+    {"ticker": "TGT", "name": "TGT", "sector": "Consumer Retail", "weight": 10},
 
     # Financial
-    {"ticker": "JPM", "name": "JPMorgan Chase", "sector": "Financial", "weight": 60},
-    {"ticker": "BRK-B", "name": "Berkshire Hathaway", "sector": "Financial", "weight": 90},
-    {"ticker": "V", "name": "Visa", "sector": "Financial", "weight": 55},
-    {"ticker": "MA", "name": "Mastercard", "sector": "Financial", "weight": 45},
-    {"ticker": "BAC", "name": "Bank of America", "sector": "Financial", "weight": 30},
-    {"ticker": "GS", "name": "Goldman Sachs", "sector": "Financial", "weight": 18},
-    {"ticker": "MS", "name": "Morgan Stanley", "sector": "Financial", "weight": 18},
+    {"ticker": "JPM", "name": "JPM", "sector": "Financial", "weight": 60},
+    {"ticker": "BRK-B", "name": "BRK-B", "sector": "Financial", "weight": 90},
+    {"ticker": "V", "name": "V", "sector": "Financial", "weight": 55},
+    {"ticker": "MA", "name": "MA", "sector": "Financial", "weight": 45},
+    {"ticker": "BAC", "name": "BAC", "sector": "Financial", "weight": 30},
+    {"ticker": "GS", "name": "GS", "sector": "Financial", "weight": 18},
+    {"ticker": "MS", "name": "MS", "sector": "Financial", "weight": 18},
 
     # Healthcare & Pharma
-    {"ticker": "LLY", "name": "Eli Lilly", "sector": "Healthcare", "weight": 80},
-    {"ticker": "UNH", "name": "UnitedHealth", "sector": "Healthcare", "weight": 50},
-    {"ticker": "JNJ", "name": "Johnson & Johnson", "sector": "Healthcare", "weight": 38},
-    {"ticker": "ABBV", "name": "AbbVie", "sector": "Healthcare", "weight": 32},
-    {"ticker": "MRK", "name": "Merck", "sector": "Healthcare", "weight": 28},
-    {"ticker": "PFE", "name": "Pfizer", "sector": "Healthcare", "weight": 16},
+    {"ticker": "LLY", "name": "LLY", "sector": "Healthcare", "weight": 80},
+    {"ticker": "UNH", "name": "UNH", "sector": "Healthcare", "weight": 50},
+    {"ticker": "JNJ", "name": "JNJ", "sector": "Healthcare", "weight": 38},
+    {"ticker": "ABBV", "name": "ABBV", "sector": "Healthcare", "weight": 32},
+    {"ticker": "MRK", "name": "MRK", "sector": "Healthcare", "weight": 28},
+    {"ticker": "PFE", "name": "PFE", "sector": "Healthcare", "weight": 16},
 
     # Consumer Defensive
-    {"ticker": "PG", "name": "Procter & Gamble", "sector": "Consumer Defensive", "weight": 40},
-    {"ticker": "KO", "name": "Coca-Cola", "sector": "Consumer Defensive", "weight": 28},
-    {"ticker": "PEP", "name": "PepsiCo", "sector": "Consumer Defensive", "weight": 24},
+    {"ticker": "PG", "name": "PG", "sector": "Consumer Defensive", "weight": 40},
+    {"ticker": "KO", "name": "KO", "sector": "Consumer Defensive", "weight": 28},
+    {"ticker": "PEP", "name": "PEP", "sector": "Consumer Defensive", "weight": 24},
 
     # Industrial & Defense & Energy
-    {"ticker": "GE", "name": "GE Aerospace", "sector": "Industrial/Defense", "weight": 22},
-    {"ticker": "CAT", "name": "Caterpillar", "sector": "Industrial/Defense", "weight": 20},
-    {"ticker": "RTX", "name": "RTX (Raytheon)", "sector": "Industrial/Defense", "weight": 18},
-    {"ticker": "LMT", "name": "Lockheed Martin", "sector": "Industrial/Defense", "weight": 15},
-    {"ticker": "XOM", "name": "ExxonMobil", "sector": "Energy", "weight": 50},
-    {"ticker": "CVX", "name": "Chevron", "sector": "Energy", "weight": 28}
+    {"ticker": "GE", "name": "GE", "sector": "Industrial/Defense", "weight": 22},
+    {"ticker": "CAT", "name": "CAT", "sector": "Industrial/Defense", "weight": 20},
+    {"ticker": "RTX", "name": "RTX", "sector": "Industrial/Defense", "weight": 18},
+    {"ticker": "LMT", "name": "LMT", "sector": "Industrial/Defense", "weight": 15},
+    {"ticker": "XOM", "name": "XOM", "sector": "Energy", "weight": 50},
+    {"ticker": "CVX", "name": "CVX", "sector": "Energy", "weight": 28}
 ]
 
 # --- 4. 데이터 페칭 함수 (캐싱 적용) ---
