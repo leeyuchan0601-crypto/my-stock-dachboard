@@ -5,4 +5,3 @@ matplotlib
 Pillow
 plotly
 
-from streamlit_autorun import autorun
