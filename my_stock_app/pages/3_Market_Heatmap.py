@@ -217,7 +217,7 @@ col_market, _ = st.columns([2, 3])
 with col_market:
     selected_market = st.radio("분석 시장 선택", ["대한민국 KOSPI 주요 종목", "미국 S&P 500 빅테크"], horizontal=True)
 
-target_dataset = KOSPI_MARKET if "KOSPI" in selected_market else US_MARKET_DATA
+target_dataset = KOSPI_STOCKS if "KOSPI" in selected_market else US_MARKET_DATA
 
 with st.spinner("📡 시장 데이터 수집 및 비주얼 매핑 중..."):
     df_heatmap = fetch_heatmap_data(target_dataset)
