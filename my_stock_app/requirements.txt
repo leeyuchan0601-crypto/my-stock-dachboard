@@ -4,4 +4,4 @@ pandas
 matplotlib
 Pillow
 plotly
-
+streamlit-autorefresh
