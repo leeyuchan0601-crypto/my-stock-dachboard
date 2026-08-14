@@ -367,10 +367,11 @@ if not df_heatmap.empty:
     gainers = df_heatmap[df_heatmap["Change"] > 0]
     losers = df_heatmap[df_heatmap["Change"] < 0]
     
-    m1, m2, m3 = st.columns(3)
+    m1, m2, m3, m4 = st.columns(4)
     m1.metric("상승 종목 수", f"{len(gainers)} 개")
     m2.metric("하락 종목 수", f"{len(losers)} 개")
     m3.metric("최대 상승 종목", f"{df_heatmap.loc[df_heatmap['Change'].idxmax()]['Name']} ({df_heatmap['Change'].max():+.2f}%)" if not df_heatmap.empty else "-")
+    m4.metric("최대 하락 종목", f"{df_heatmap.loc[df_heatmap['Change'].idxmin()]['Name']} ({df_heatmap['Change'].min():+.2f}%)" if not df_heatmap.empty else "-")
 
 else:
     st.error("히트맵 데이터를 구성하지 못했습니다.")
