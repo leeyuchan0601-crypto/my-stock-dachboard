@@ -349,7 +349,6 @@ if not df_heatmap.empty:
     )
 
     fig.update_layout(
-        clickmode="event+select",  # 👈 [핵심] 클릭 신호를 강제로 ZION으로 보냄
         template="plotly_dark",
         height=750,
         margin=dict(l=10, r=10, t=30, b=10),
@@ -360,51 +359,42 @@ if not df_heatmap.empty:
         )
     )
 
-    # 트리맵 출력 (클릭 이벤트 제외, 순수 시각화용으로만 깔끔하게 출력)
-    st.plotly_chart(fig, use_container_width=True)
+    # ---------------------------------------------------------
+    # 🚀 [진짜 클릭 로직] 기본 차트 대신 plotly_events를 써서 클릭 신호를 강탈함
+    # ---------------------------------------------------------
+    clicked_data = plotly_events(
+        fig, 
+        click_event=True, 
+        hover_event=False, 
+        select_event=False,
+        override_height=750,
+        key="treemap_click"
+    )
 
-    # ---------------------------------------------------------
-    # 🚀 [업그레이드] 다이렉트 Analyzer 점프 패널
-    # ---------------------------------------------------------
-    st.write("---")
-    st.subheader("🚀 즉시 분석 (Analyzer 연결)")
-    
-    # 히트맵에 떠 있는 종목들만 모아서 "티커 - 종목명" 리스트 생성
-    available_options = []
-    for _, row in df_heatmap.iterrows():
-        if row["Ticker"] and row["Ticker"] != "ALL MARKET":
-            available_options.append(f'{row["Ticker"]} ({row["Name"]})')
+    # 클릭 이벤트가 감지되었을 때 실행
+    if clicked_data:
+        try:
+            # 클릭된 박스의 고유 인덱스 번호 추출
+            point_index = clicked_data[0].get("pointNumber")
             
-    # 정렬해서 보기 편하게 만듦
-    available_options.sort()
-    
-    col_jump1, col_jump2 = st.columns([3, 1])
-    with col_jump1:
-        jump_selection = st.selectbox(
-            "히트맵에서 확인한 종목을 선택하세요 (타이핑 자동완성 지원)", 
-            ["🔍 종목을 선택하세요..."] + available_options
-        )
-    
-    with col_jump2:
-        st.write("") # 줄맞춤용 공백
-        st.write("") 
-        if st.button("차트 분석하러 가기 ➔", type="primary", use_container_width=True):
-            if "🔍" in jump_selection:
-                st.warning("먼저 이동할 종목을 선택해 주세요.")
-            else:
-                # "NVDA (NVDA)" 에서 앞의 티커 "NVDA"만 깔끔하게 추출
-                selected_tk = jump_selection.split(" ")[0]
+            if point_index is not None:
+                # fig 데이터 내부에 꽁꽁 숨겨진 해당 박스의 Ticker를 인덱스로 찾아냄
+                clicked_ticker = fig.data[0].customdata[point_index][0]
                 
-                # 세션에 값 우겨넣고 즉시 이동
-                st.session_state.ticker_val = selected_tk
-                st.session_state.ticker_input_key = selected_tk
-                st.session_state.run_analysis = True
-                
-                st.switch_page("pages/1_ZION_Analyzer.py")
+                # 상위 그룹(ALL MARKET, 섹터 등은 클릭하면 "(?)" 로 뜸)이 아닌 실제 종목인지 확인
+                if clicked_ticker and str(clicked_ticker) not in ["(?)", "None", ""]:
+                    
+                    # 세션 업데이트
+                    st.session_state.ticker_val = clicked_ticker
+                    st.session_state.ticker_input_key = clicked_ticker
+                    st.session_state.run_analysis = True
+                    
+                    # 1_ZION_Analyzer.py 로 다이렉트 사출!
+                    st.switch_page("pages/1_ZION_Analyzer.py")
+        except Exception as e:
+            st.error(f"클릭 처리 중 오류: {e}")
 
-    # ---------------------------------------------------------
     # 하단 시장 요약 메트릭
-    # ---------------------------------------------------------
     st.write("---")
     st.subheader("📊 섹터별 동향 요약")
     
