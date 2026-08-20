@@ -184,7 +184,11 @@ if 'run_analysis' not in st.session_state: st.session_state.run_analysis = False
 
 with st.sidebar:
     st.header("🛸 ZION CONTROL")
-    ticker_input = st.text_input("종목 코드", value=st.session_state.ticker_val, key="ticker_input_key", on_change=on_ticker_enter).upper().strip()
+    # 히트맵에서 클릭해 넘어온 경우 인풋 키 값도 같이 동기화
+if "ticker_input_key" not in st.session_state or st.session_state.ticker_input_key != st.session_state.ticker_val:
+    st.session_state.ticker_input_key = st.session_state.ticker_val
+
+ticker_input = st.text_input("종목 코드", key="ticker_input_key", on_change=on_ticker_enter).upper().strip()
     col1, col2 = st.columns(2)
     start_d = col1.date_input("시작일", datetime.date.today() - datetime.timedelta(days=180))
     end_d = col2.date_input("종료일", datetime.date.today())
