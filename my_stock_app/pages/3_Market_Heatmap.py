@@ -338,7 +338,7 @@ if not df_heatmap.empty:
             [1.0, "#00ff66"]     # 상승 (녹색)
         ],
         color_continuous_midpoint=0,
-        custom_data=["Ticker", "ChangeText"]
+        custom_data=["Ticker", "ChangeText", "Name"]
     )
 
     # 텍스트 레이아웃 및 툴팁 서식 지정
@@ -369,16 +369,18 @@ if not df_heatmap.empty:
     # 클릭된 종목이 있을 경우 세션에 티커 저장 후 Analyzer 페이지로 즉시 이동
     if event and "selection" in event and event["selection"]["points"]:
         point = event["selection"]["points"][0]
-        # customdata = ["Price", "ChangePct", "Ticker"] 중 2번째 인덱스가 Ticker
-        if "customdata" in point and len(point["customdata"]) > 2:
-            clicked_ticker = point["customdata"][2]
+        if "customdata" in point and len(point["customdata"]) > 0:
+            clicked_ticker = point["customdata"][0]
             
-            # Analyzer 세션 상태 업데이트
-            st.session_state.ticker_val = clicked_ticker
-            st.session_state.run_analysis = True
-            
-            # 1_ZION_Analyzer.py 페이지로 이동
-            st.switch_page("pages/1_ZION_Analyzer.py")
+            # 상위 분류(루트 및 섹터) 클릭 제외하고 실제 종목 티커인 경우만 이동
+            if clicked_ticker and clicked_ticker != "ALL MARKET":
+                # Analyzer 세션 상태 업데이트
+                st.session_state.ticker_val = clicked_ticker
+                st.session_state.ticker_input_key = clicked_ticker
+                st.session_state.run_analysis = True
+                
+                # 1_ZION_Analyzer.py 페이지로 이동
+                st.switch_page("pages/1_ZION_Analyzer.py")
 
     # 하단 시장 요약 메트릭
     st.write("---")
