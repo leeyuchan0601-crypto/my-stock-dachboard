@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 from PIL import Image
 import os
+from streamlit_plotly_events import plotly_events
 
 # --- 1. 페이지 설정 및 아이콘 ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
