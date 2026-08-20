@@ -327,38 +327,42 @@ with st.spinner("📡 시장 데이터 수집 및 비주얼 매핑 중..."):
     df_heatmap = fetch_heatmap_data(target_dataset)
 
 if not df_heatmap.empty:
-    # Plotly Treemap 생성
+    df_heatmap["Weight"] = pd.to_numeric(df_heatmap["Weight"])
+    
+   # Plotly Treemap 생성
     fig = px.treemap(
         df_heatmap,
-        path=[px.Constant("ALL MARKET"), "Sector", "Name"],
+        path=["Sector", "Name"],  # 👈 ALL MARKET 껍데기를 날려버려서 비중별 크기를 정확히 살려냄
         values="Weight",
         color="Change",
         color_continuous_scale=[
-            [0.0, "#ff0055"],    # 하락 (붉은색)
-            [0.5, "#1a1a1a"],    # 보합 (어두운 회색)
-            [1.0, "#00ff66"]     # 상승 (녹색)
+            [0.0, "#ff0055"],    # 강력한 하락 (밝은 붉은색)
+            [0.5, "#151515"],    # 보합 (아주 짙은 회색)
+            [1.0, "#00ff66"]     # 강력한 상승 (네온 녹색)
         ],
         color_continuous_midpoint=0,
+        range_color=[-5, 5],     # 👈 [핵심] 변동률을 -5% ~ +5%로 가둬서, 극단적인 종목 때문에 색이 까매지는 현상 방지!
         custom_data=["Ticker", "ChangeText", "Name"]
     )
 
-    # 텍스트 레이아웃 및 툴팁 서식 지정
+    # 텍스트 레이아웃 및 툴팁 서식 지정 (텍스트를 핀비즈처럼 정중앙으로!)
     fig.update_traces(
+        textposition="middle center", # 👈 글자를 상자 맨 위가 아닌 정중앙에 배치
+        textfont=dict(color="white", size=14, family="Arial Black"), # 글씨를 조금 더 굵고 선명하게
         texttemplate="<b>%{label}</b><br>%{customdata[1]}",
         hovertemplate="<b>종목:</b> %{label} (%{customdata[0]})<br><b>변동률:</b> %{customdata[1]}<br><b>비중 지수:</b> %{value}"
     )
 
     fig.update_layout(
         template="plotly_dark",
-        height=750,
-        margin=dict(l=10, r=10, t=30, b=10),
+        height=800, # 👈 세로로 조금 더 길게 늘려서 시원하게 보이게 설정
+        margin=dict(l=0, r=0, t=30, b=0), # 여백을 다 없애서 화면에 꽉 차게 
         coloraxis_colorbar=dict(
             title="등락률 (%)",
             ticksuffix="%",
             dtick=2
         )
     )
-
     # ---------------------------------------------------------
     # 🚀 [진짜 클릭 로직] 기본 차트 대신 plotly_events를 써서 클릭 신호를 강탈함
     # ---------------------------------------------------------
