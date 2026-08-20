@@ -4,4 +4,4 @@ pandas
 matplotlib
 Pillow
 plotly
-pip install streamlit-plotly-events
+streamlit-plotly-events
