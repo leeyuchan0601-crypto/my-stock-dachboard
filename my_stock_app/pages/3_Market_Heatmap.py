@@ -358,7 +358,6 @@ if not df_heatmap.empty:
             dtick=2
         )
     )
-    )
 
     # on_select="rerun"을 활성화하여 클릭 이벤트를 감지
     event = st.plotly_chart(
