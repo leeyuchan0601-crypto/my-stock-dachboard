@@ -358,7 +358,27 @@ if not df_heatmap.empty:
         )
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    # on_select="rerun"을 활성화하여 클릭 이벤트를 감지
+    event = st.plotly_chart(
+        fig, 
+        use_container_width=True, 
+        on_select="rerun", 
+        key="heatmap_chart"
+    )
+
+    # 클릭된 종목이 있을 경우 세션에 티커 저장 후 Analyzer 페이지로 즉시 이동
+    if event and "selection" in event and event["selection"]["points"]:
+        point = event["selection"]["points"][0]
+        # customdata = ["Price", "ChangePct", "Ticker"] 중 2번째 인덱스가 Ticker
+        if "customdata" in point and len(point["customdata"]) > 2:
+            clicked_ticker = point["customdata"][2]
+            
+            # Analyzer 세션 상태 업데이트
+            st.session_state.ticker_val = clicked_ticker
+            st.session_state.run_analysis = True
+            
+            # 1_ZION_Analyzer.py 페이지로 이동
+            st.switch_page("pages/1_ZION_Analyzer.py")
 
     # 하단 시장 요약 메트릭
     st.write("---")
