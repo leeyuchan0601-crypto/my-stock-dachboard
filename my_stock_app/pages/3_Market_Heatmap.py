@@ -348,6 +348,7 @@ if not df_heatmap.empty:
     )
 
     fig.update_layout(
+        clickmode="event+select",  # 👈 [핵심] 클릭 신호를 강제로 ZION으로 보냄
         template="plotly_dark",
         height=750,
         margin=dict(l=10, r=10, t=30, b=10),
@@ -356,6 +357,7 @@ if not df_heatmap.empty:
             ticksuffix="%",
             dtick=2
         )
+    )
     )
 
     # on_select="rerun"을 활성화하여 클릭 이벤트를 감지
