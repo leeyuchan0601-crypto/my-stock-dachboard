@@ -366,21 +366,31 @@ if not df_heatmap.empty:
         key="heatmap_chart"
     )
 
-    # 클릭된 종목이 있을 경우 세션에 티커 저장 후 Analyzer 페이지로 즉시 이동
+    # ---------------------------------------------------------
+    # 💡 [디버깅 & 안전한 이동 로직 업그레이드]
+    # ---------------------------------------------------------
+    # 만약 클릭해도 안 넘어간다면, 아래 주석(#)을 풀어서 어떤 데이터가 잡히는지 화면에 띄워보세요.
+    # st.write("현재 클릭된 센서 데이터:", event)
+
     if event and "selection" in event and event["selection"]["points"]:
         point = event["selection"]["points"][0]
-        if "customdata" in point and len(point["customdata"]) > 0:
-            clicked_ticker = point["customdata"][0]
+        
+        # customdata가 존재하면 Ticker 추출, 없으면 빈 문자열(안전하게 get 사용)
+        custom_data = point.get("customdata", [""])
+        clicked_ticker = custom_data[0] if len(custom_data) > 0 else ""
+        
+        # 최상위 'ALL MARKET'이나 중간 'Sector( - 포함)' 그룹이 아닌, 실제 종목(Ticker)인지 확인
+        if clicked_ticker and clicked_ticker != "ALL MARKET" and " - " not in clicked_ticker:
             
-            # 상위 분류(루트 및 섹터) 클릭 제외하고 실제 종목 티커인 경우만 이동
-            if clicked_ticker and clicked_ticker != "ALL MARKET":
-                # Analyzer 세션 상태 업데이트
-                st.session_state.ticker_val = clicked_ticker
-                st.session_state.ticker_input_key = clicked_ticker
-                st.session_state.run_analysis = True
-                
-                # 1_ZION_Analyzer.py 페이지로 이동
+            st.session_state.ticker_val = clicked_ticker
+            st.session_state.ticker_input_key = clicked_ticker
+            st.session_state.run_analysis = True
+            
+            # 페이지 강제 이동 (예외 처리 추가)
+            try:
                 st.switch_page("pages/1_ZION_Analyzer.py")
+            except Exception as e:
+                st.error(f"🚨 페이지 이동 실패! 왼쪽 폴더에 있는 Analyzer 파일명이 정확히 '1_ZION_Analyzer.py'인지 대소문자를 확인하세요. (원인: {e})")
 
     # 하단 시장 요약 메트릭
     st.write("---")
