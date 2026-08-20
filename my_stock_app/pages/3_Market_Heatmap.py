@@ -359,41 +359,51 @@ if not df_heatmap.empty:
         )
     )
 
-    # on_select="rerun"을 활성화하여 클릭 이벤트를 감지
-    event = st.plotly_chart(
-        fig, 
-        use_container_width=True, 
-        on_select="rerun", 
-        key="heatmap_chart"
-    )
+    # 트리맵 출력 (클릭 이벤트 제외, 순수 시각화용으로만 깔끔하게 출력)
+    st.plotly_chart(fig, use_container_width=True)
 
     # ---------------------------------------------------------
-    # 💡 [디버깅 & 안전한 이동 로직 업그레이드]
+    # 🚀 [업그레이드] 다이렉트 Analyzer 점프 패널
     # ---------------------------------------------------------
-    # 만약 클릭해도 안 넘어간다면, 아래 주석(#)을 풀어서 어떤 데이터가 잡히는지 화면에 띄워보세요.
-    # st.write("현재 클릭된 센서 데이터:", event)
-
-    if event and "selection" in event and event["selection"]["points"]:
-        point = event["selection"]["points"][0]
-        
-        # customdata가 존재하면 Ticker 추출, 없으면 빈 문자열(안전하게 get 사용)
-        custom_data = point.get("customdata", [""])
-        clicked_ticker = custom_data[0] if len(custom_data) > 0 else ""
-        
-        # 최상위 'ALL MARKET'이나 중간 'Sector( - 포함)' 그룹이 아닌, 실제 종목(Ticker)인지 확인
-        if clicked_ticker and clicked_ticker != "ALL MARKET" and " - " not in clicked_ticker:
+    st.write("---")
+    st.subheader("🚀 즉시 분석 (Analyzer 연결)")
+    
+    # 히트맵에 떠 있는 종목들만 모아서 "티커 - 종목명" 리스트 생성
+    available_options = []
+    for _, row in df_heatmap.iterrows():
+        if row["Ticker"] and row["Ticker"] != "ALL MARKET":
+            available_options.append(f'{row["Ticker"]} ({row["Name"]})')
             
-            st.session_state.ticker_val = clicked_ticker
-            st.session_state.ticker_input_key = clicked_ticker
-            st.session_state.run_analysis = True
-            
-            # 페이지 강제 이동 (예외 처리 추가)
-            try:
+    # 정렬해서 보기 편하게 만듦
+    available_options.sort()
+    
+    col_jump1, col_jump2 = st.columns([3, 1])
+    with col_jump1:
+        jump_selection = st.selectbox(
+            "히트맵에서 확인한 종목을 선택하세요 (타이핑 자동완성 지원)", 
+            ["🔍 종목을 선택하세요..."] + available_options
+        )
+    
+    with col_jump2:
+        st.write("") # 줄맞춤용 공백
+        st.write("") 
+        if st.button("차트 분석하러 가기 ➔", type="primary", use_container_width=True):
+            if "🔍" in jump_selection:
+                st.warning("먼저 이동할 종목을 선택해 주세요.")
+            else:
+                # "NVDA (NVDA)" 에서 앞의 티커 "NVDA"만 깔끔하게 추출
+                selected_tk = jump_selection.split(" ")[0]
+                
+                # 세션에 값 우겨넣고 즉시 이동
+                st.session_state.ticker_val = selected_tk
+                st.session_state.ticker_input_key = selected_tk
+                st.session_state.run_analysis = True
+                
                 st.switch_page("pages/1_ZION_Analyzer.py")
-            except Exception as e:
-                st.error(f"🚨 페이지 이동 실패! 왼쪽 폴더에 있는 Analyzer 파일명이 정확히 '1_ZION_Analyzer.py'인지 대소문자를 확인하세요. (원인: {e})")
 
+    # ---------------------------------------------------------
     # 하단 시장 요약 메트릭
+    # ---------------------------------------------------------
     st.write("---")
     st.subheader("📊 섹터별 동향 요약")
     
