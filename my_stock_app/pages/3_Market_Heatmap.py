@@ -1,7 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 from PIL import Image
 import os
 from streamlit_plotly_events import plotly_events
@@ -17,34 +17,35 @@ if os.path.exists(icon_path):
 else:
     st.set_page_config(page_title="ZION | Market Heatmap", page_icon="🗺️", layout="wide")
 
-# --- 2. 파이낸스 히트맵(Finviz 스타일) CSS ---
+# --- 2. Finviz 클래식(화이트) 테마 CSS ---
 st.markdown("""
     <style>
-    /* 전체 배경을 진한 차콜톤으로 통일 */
-    .stApp {
-        background-color: #131722;
-    }
+    .stApp { background-color: #ffffff; }
+    h1, h2, h3, p, span, label { color: #111111 !important; }
     div[data-testid="metric-container"] {
-        background-color: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background-color: #f5f5f7;
+        border: 1px solid #e0e0e0;
         padding: 15px;
         border-radius: 8px;
     }
-    /* 라디오 버튼 라벨 스타일 */
-    div[role="radiogroup"] label {
-        font-weight: 600;
-    }
+    div[data-testid="metric-container"] label, div[data-testid="metric-container"] div { color: #111111 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. 주식 데이터 리스트 ---
+# --- 3. 주식 데이터 리스트 (Finviz 표준 섹터 체계 + 종목 대폭 확충) ---
 KOSPI_STOCKS = [
+    # 반도체/IT
     {"ticker": "005930.KS", "name": "삼성전자", "sector": "반도체/IT", "weight": 350},
     {"ticker": "000660.KS", "name": "SK하이닉스", "sector": "반도체/IT", "weight": 140},
     {"ticker": "042700.KS", "name": "한미반도체", "sector": "반도체/IT", "weight": 20},
     {"ticker": "009150.KS", "name": "삼성전기", "sector": "반도체/IT", "weight": 18},
     {"ticker": "011070.KS", "name": "LG이노텍", "sector": "반도체/IT", "weight": 12},
     {"ticker": "018260.KS", "name": "삼성SDS", "sector": "반도체/IT", "weight": 15},
+    {"ticker": "058470.KQ", "name": "리노공업", "sector": "반도체/IT", "weight": 8},
+    {"ticker": "240810.KQ", "name": "원익IPS", "sector": "반도체/IT", "weight": 6},
+    {"ticker": "036930.KQ", "name": "주성엔지니어링", "sector": "반도체/IT", "weight": 5},
+    {"ticker": "403870.KQ", "name": "HPSP", "sector": "반도체/IT", "weight": 6},
+    # 2차전지/화학/에너지
     {"ticker": "373220.KS", "name": "LG에너지솔루션", "sector": "2차전지/화학/에너지", "weight": 80},
     {"ticker": "006400.KS", "name": "삼성SDI", "sector": "2차전지/화학/에너지", "weight": 25},
     {"ticker": "005490.KS", "name": "POSCO홀딩스", "sector": "2차전지/화학/에너지", "weight": 32},
@@ -52,15 +53,24 @@ KOSPI_STOCKS = [
     {"ticker": "003670.KS", "name": "포스코퓨처엠", "sector": "2차전지/화학/에너지", "weight": 20},
     {"ticker": "096770.KS", "name": "SK이노베이션", "sector": "2차전지/화학/에너지", "weight": 15},
     {"ticker": "010950.KS", "name": "S-Oil", "sector": "2차전지/화학/에너지", "weight": 12},
+    {"ticker": "066970.KQ", "name": "엘앤에프", "sector": "2차전지/화학/에너지", "weight": 7},
+    {"ticker": "247540.KQ", "name": "에코프로비엠", "sector": "2차전지/화학/에너지", "weight": 9},
+    {"ticker": "086520.KQ", "name": "에코프로", "sector": "2차전지/화학/에너지", "weight": 10},
+    # 제약/바이오
     {"ticker": "207940.KS", "name": "삼성바이오로직스", "sector": "제약/바이오", "weight": 65},
     {"ticker": "068270.KS", "name": "셀트리온", "sector": "제약/바이오", "weight": 45},
     {"ticker": "000100.KS", "name": "유한양행", "sector": "제약/바이오", "weight": 15},
     {"ticker": "128940.KS", "name": "한미약품", "sector": "제약/바이오", "weight": 12},
     {"ticker": "326030.KS", "name": "SK바이오팜", "sector": "제약/바이오", "weight": 10},
+    {"ticker": "196170.KQ", "name": "알테오젠", "sector": "제약/바이오", "weight": 9},
+    {"ticker": "302440.KS", "name": "SK바이오사이언스", "sector": "제약/바이오", "weight": 7},
+    # 자동차/모빌리티
     {"ticker": "005380.KS", "name": "현대차", "sector": "자동차/모빌리티", "weight": 55},
     {"ticker": "000270.KS", "name": "기아", "sector": "자동차/모빌리티", "weight": 50},
     {"ticker": "012330.KS", "name": "현대모비스", "sector": "자동차/모빌리티", "weight": 22},
     {"ticker": "204320.KS", "name": "HL만도", "sector": "자동차/모빌리티", "weight": 8},
+    {"ticker": "011210.KS", "name": "현대위아", "sector": "자동차/모빌리티", "weight": 5},
+    # 방산/조선/중공업
     {"ticker": "012450.KS", "name": "한화에어로스페이스", "sector": "방산/조선/중공업", "weight": 30},
     {"ticker": "064350.KS", "name": "현대로템", "sector": "방산/조선/중공업", "weight": 18},
     {"ticker": "079550.KS", "name": "LIG넥스원", "sector": "방산/조선/중공업", "weight": 15},
@@ -68,9 +78,13 @@ KOSPI_STOCKS = [
     {"ticker": "042660.KS", "name": "한화오션", "sector": "방산/조선/중공업", "weight": 18},
     {"ticker": "010140.KS", "name": "삼성중공업", "sector": "방산/조선/중공업", "weight": 14},
     {"ticker": "034020.KS", "name": "두산에너빌리티", "sector": "방산/조선/중공업", "weight": 22},
+    {"ticker": "047810.KS", "name": "한국항공우주", "sector": "방산/조선/중공업", "weight": 12},
+    # 전력/전력기기
     {"ticker": "267260.KS", "name": "HD현대일렉트릭", "sector": "전력/전력기기", "weight": 25},
     {"ticker": "010120.KS", "name": "LS일렉트릭", "sector": "전력/전력기기", "weight": 18},
     {"ticker": "015760.KS", "name": "한국전력", "sector": "전력/전력기기", "weight": 16},
+    {"ticker": "047050.KS", "name": "포스코인터내셔널", "sector": "전력/전력기기", "weight": 10},
+    # 금융/지주
     {"ticker": "105560.KS", "name": "KB금융", "sector": "금융/지주", "weight": 35},
     {"ticker": "055550.KS", "name": "신한지주", "sector": "금융/지주", "weight": 30},
     {"ticker": "086790.KS", "name": "하나금융지주", "sector": "금융/지주", "weight": 20},
@@ -79,150 +93,258 @@ KOSPI_STOCKS = [
     {"ticker": "032830.KS", "name": "삼성생명", "sector": "금융/지주", "weight": 18},
     {"ticker": "000810.KS", "name": "삼성화재", "sector": "금융/지주", "weight": 16},
     {"ticker": "006800.KS", "name": "미래에셋증권", "sector": "금융/지주", "weight": 10},
+    {"ticker": "323410.KS", "name": "카카오뱅크", "sector": "금융/지주", "weight": 12},
+    # 플랫폼/통신
     {"ticker": "035420.KS", "name": "NAVER", "sector": "플랫폼/통신", "weight": 30},
     {"ticker": "035720.KS", "name": "카카오", "sector": "플랫폼/통신", "weight": 22},
     {"ticker": "017670.KS", "name": "SK텔레콤", "sector": "플랫폼/통신", "weight": 15},
     {"ticker": "030200.KS", "name": "KT", "sector": "플랫폼/통신", "weight": 14},
+    {"ticker": "032640.KS", "name": "LG유플러스", "sector": "플랫폼/통신", "weight": 8},
+    # 소비재/유통/뷰티
     {"ticker": "090430.KS", "name": "아모레퍼시픽", "sector": "소비재/유통/뷰티", "weight": 14},
     {"ticker": "051900.KS", "name": "LG생활건강", "sector": "소비재/유통/뷰티", "weight": 12},
     {"ticker": "033780.KS", "name": "KT&G", "sector": "소비재/유통/뷰티", "weight": 18},
     {"ticker": "097950.KS", "name": "CJ제일제당", "sector": "소비재/유통/뷰티", "weight": 10},
+    {"ticker": "023530.KS", "name": "롯데쇼핑", "sector": "소비재/유통/뷰티", "weight": 6},
+    {"ticker": "004170.KS", "name": "신세계", "sector": "소비재/유통/뷰티", "weight": 6},
+    # 철강/건설/인프라
     {"ticker": "010130.KS", "name": "고려아연", "sector": "철강/건설/인프라", "weight": 20},
     {"ticker": "004020.KS", "name": "현대제철", "sector": "철강/건설/인프라", "weight": 10},
-    {"ticker": "028260.KS", "name": "삼성물산", "sector": "철강/건설/인프라", "weight": 25}
+    {"ticker": "028260.KS", "name": "삼성물산", "sector": "철강/건설/인프라", "weight": 25},
+    {"ticker": "000720.KS", "name": "현대건설", "sector": "철강/건설/인프라", "weight": 8},
 ]
 
 US_MARKET_DATA = [
-    {"ticker": "MSFT", "name": "MSFT", "sector": "Tech - Software Infra", "weight": 320},
-    {"ticker": "ORCL", "name": "ORCL", "sector": "Tech - Software Infra", "weight": 55},
-    {"ticker": "PLTR", "name": "PLTR", "sector": "Tech - Software Infra", "weight": 25},
-    {"ticker": "PANW", "name": "PANW", "sector": "Tech - Software Infra", "weight": 18},
-    {"ticker": "CRWD", "name": "CRWD", "sector": "Tech - Software Infra", "weight": 16},
-    {"ticker": "SNPS", "name": "SNPS", "sector": "Tech - Software Infra", "weight": 14},
-    {"ticker": "CDNS", "name": "CDNS", "sector": "Tech - Software Infra", "weight": 14},
-    {"ticker": "FTNT", "name": "FTNT", "sector": "Tech - Software Infra", "weight": 12},
-    {"ticker": "AAPL", "name": "AAPL", "sector": "Tech - Consumer Electronics", "weight": 340},
-    {"ticker": "HPQ", "name": "HPQ", "sector": "Tech - Consumer Electronics", "weight": 10},
-    {"ticker": "NVDA", "name": "NVDA", "sector": "Tech - Semiconductors", "weight": 310},
-    {"ticker": "AVGO", "name": "AVGO", "sector": "Tech - Semiconductors", "weight": 90},
-    {"ticker": "AMD", "name": "AMD", "sector": "Tech - Semiconductors", "weight": 28},
-    {"ticker": "QCOM", "name": "QCOM", "sector": "Tech - Semiconductors", "weight": 26},
-    {"ticker": "TXN", "name": "TXN", "sector": "Tech - Semiconductors", "weight": 22},
-    {"ticker": "MU", "name": "MU", "sector": "Tech - Semiconductors", "weight": 18},
-    {"ticker": "INTC", "name": "INTC", "sector": "Tech - Semiconductors", "weight": 14},
-    {"ticker": "ADI", "name": "ADI", "sector": "Tech - Semiconductors", "weight": 16},
-    {"ticker": "AMAT", "name": "AMAT", "sector": "Tech - Semi Equipment", "weight": 22},
-    {"ticker": "LRCX", "name": "LRCX", "sector": "Tech - Semi Equipment", "weight": 18},
-    {"ticker": "KLAC", "name": "KLAC", "sector": "Tech - Semi Equipment", "weight": 16},
-    {"ticker": "CRM", "name": "CRM", "sector": "Tech - Software Apps", "weight": 32},
-    {"ticker": "ADBE", "name": "ADBE", "sector": "Tech - Software Apps", "weight": 24},
-    {"ticker": "NOW", "name": "NOW", "sector": "Tech - Software Apps", "weight": 22},
-    {"ticker": "INTU", "name": "INTU", "sector": "Tech - Software Apps", "weight": 20},
-    {"ticker": "UBER", "name": "UBER", "sector": "Tech - Software Apps", "weight": 22},
-    {"ticker": "SHOP", "name": "SHOP", "sector": "Tech - Software Apps", "weight": 18},
-    {"ticker": "IBM", "name": "IBM", "sector": "Tech - IT Services & Comm", "weight": 26},
-    {"ticker": "ACN", "name": "ACN", "sector": "Tech - IT Services & Comm", "weight": 24},
-    {"ticker": "CSCO", "name": "CSCO", "sector": "Tech - IT Services & Comm", "weight": 28},
-    {"ticker": "ANET", "name": "ANET", "sector": "Tech - IT Services & Comm", "weight": 18},
-    {"ticker": "GOOGL", "name": "GOOGL", "sector": "Comm - Internet Content", "weight": 220},
-    {"ticker": "META", "name": "META", "sector": "Comm - Internet Content", "weight": 150},
-    {"ticker": "NFLX", "name": "NFLX", "sector": "Comm - Entertainment", "weight": 40},
-    {"ticker": "DIS", "name": "DIS", "sector": "Comm - Entertainment", "weight": 22},
-    {"ticker": "SPOT", "name": "SPOT", "sector": "Comm - Entertainment", "weight": 12},
-    {"ticker": "TMUS", "name": "TMUS", "sector": "Comm - Telecom", "weight": 24},
-    {"ticker": "VZ", "name": "VZ", "sector": "Comm - Telecom", "weight": 20},
-    {"ticker": "T", "name": "T", "sector": "Comm - Telecom", "weight": 18},
-    {"ticker": "AMZN", "name": "AMZN", "sector": "Cyclical - Internet Retail", "weight": 200},
-    {"ticker": "BABA", "name": "BABA", "sector": "Cyclical - Internet Retail", "weight": 25},
-    {"ticker": "PDD", "name": "PDD", "sector": "Cyclical - Internet Retail", "weight": 20},
-    {"ticker": "MELI", "name": "MELI", "sector": "Cyclical - Internet Retail", "weight": 15},
-    {"ticker": "DASH", "name": "DASH", "sector": "Cyclical - Internet Retail", "weight": 12},
-    {"ticker": "TSLA", "name": "TSLA", "sector": "Cyclical - Auto Manufacturers", "weight": 85},
-    {"ticker": "TM", "name": "TM", "sector": "Cyclical - Auto Manufacturers", "weight": 30},
-    {"ticker": "F", "name": "F", "sector": "Cyclical - Auto Manufacturers", "weight": 12},
-    {"ticker": "GM", "name": "GM", "sector": "Cyclical - Auto Manufacturers", "weight": 12},
-    {"ticker": "RACE", "name": "RACE", "sector": "Cyclical - Auto Manufacturers", "weight": 15},
-    {"ticker": "MCD", "name": "MCD", "sector": "Cyclical - Restaurants & Retail", "weight": 26},
-    {"ticker": "SBUX", "name": "SBUX", "sector": "Cyclical - Restaurants & Retail", "weight": 16},
-    {"ticker": "HD", "name": "HD", "sector": "Cyclical - Home Improvement", "weight": 42},
-    {"ticker": "LOW", "name": "LOW", "sector": "Cyclical - Home Improvement", "weight": 20},
-    {"ticker": "NKE", "name": "NKE", "sector": "Cyclical - Apparel & Travel", "weight": 16},
-    {"ticker": "TJX", "name": "TJX", "sector": "Cyclical - Apparel & Travel", "weight": 18},
-    {"ticker": "BKNG", "name": "BKNG", "sector": "Cyclical - Apparel & Travel", "weight": 22},
-    {"ticker": "ABNB", "name": "ABNB", "sector": "Cyclical - Apparel & Travel", "weight": 14},
-    {"ticker": "WMT", "name": "WMT", "sector": "Defensive - Discount Stores", "weight": 60},
-    {"ticker": "COST", "name": "COST", "sector": "Defensive - Discount Stores", "weight": 45},
-    {"ticker": "TGT", "name": "TGT", "sector": "Defensive - Discount Stores", "weight": 12},
-    {"ticker": "PG", "name": "PG", "sector": "Defensive - Household & Personal", "weight": 45},
-    {"ticker": "CL", "name": "CL", "sector": "Defensive - Household & Personal", "weight": 12},
-    {"ticker": "KO", "name": "KO", "sector": "Defensive - Beverages", "weight": 30},
-    {"ticker": "PEP", "name": "PEP", "sector": "Defensive - Beverages", "weight": 26},
-    {"ticker": "MNST", "name": "MNST", "sector": "Defensive - Beverages", "weight": 10},
-    {"ticker": "PM", "name": "PM", "sector": "Defensive - Tobacco & Food", "weight": 22},
-    {"ticker": "MO", "name": "MO", "sector": "Defensive - Tobacco & Food", "weight": 14},
-    {"ticker": "MDLZ", "name": "MDLZ", "sector": "Defensive - Tobacco & Food", "weight": 15},
-    {"ticker": "JPM", "name": "JPM", "sector": "Financial - Diversified Banks", "weight": 65},
-    {"ticker": "BAC", "name": "BAC", "sector": "Financial - Diversified Banks", "weight": 32},
-    {"ticker": "WFC", "name": "WFC", "sector": "Financial - Diversified Banks", "weight": 26},
-    {"ticker": "C", "name": "C", "sector": "Financial - Diversified Banks", "weight": 18},
-    {"ticker": "HSBC", "name": "HSBC", "sector": "Financial - Diversified Banks", "weight": 20},
-    {"ticker": "V", "name": "V", "sector": "Financial - Credit Services", "weight": 60},
-    {"ticker": "MA", "name": "MA", "sector": "Financial - Credit Services", "weight": 50},
-    {"ticker": "AXP", "name": "AXP", "sector": "Financial - Credit Services", "weight": 24},
-    {"ticker": "COF", "name": "COF", "sector": "Financial - Credit Services", "weight": 12},
-    {"ticker": "BRK-B", "name": "BRK-B", "sector": "Financial - Insurance & Holdings", "weight": 95},
-    {"ticker": "PGR", "name": "PGR", "sector": "Financial - Insurance & Holdings", "weight": 20},
-    {"ticker": "CB", "name": "CB", "sector": "Financial - Insurance & Holdings", "weight": 16},
-    {"ticker": "BX", "name": "BX", "sector": "Financial - Asset Mgmt & Capital", "weight": 28},
-    {"ticker": "KKR", "name": "KKR", "sector": "Financial - Asset Mgmt & Capital", "weight": 20},
-    {"ticker": "BLK", "name": "BLK", "sector": "Financial - Asset Mgmt & Capital", "weight": 22},
-    {"ticker": "MS", "name": "MS", "sector": "Financial - Asset Mgmt & Capital", "weight": 20},
-    {"ticker": "GS", "name": "GS", "sector": "Financial - Asset Mgmt & Capital", "weight": 20},
-    {"ticker": "SCHW", "name": "SCHW", "sector": "Financial - Asset Mgmt & Capital", "weight": 18},
-    {"ticker": "SPGI", "name": "SPGI", "sector": "Financial - Asset Mgmt & Capital", "weight": 22},
-    {"ticker": "LLY", "name": "LLY", "sector": "Healthcare - Drug Mfrs", "weight": 85},
-    {"ticker": "JNJ", "name": "JNJ", "sector": "Healthcare - Drug Mfrs", "weight": 40},
-    {"ticker": "ABBV", "name": "ABBV", "sector": "Healthcare - Drug Mfrs", "weight": 35},
-    {"ticker": "MRK", "name": "MRK", "sector": "Healthcare - Drug Mfrs", "weight": 30},
-    {"ticker": "PFE", "name": "PFE", "sector": "Healthcare - Drug Mfrs", "weight": 18},
-    {"ticker": "AZN", "name": "AZN", "sector": "Healthcare - Drug Mfrs", "weight": 22},
-    {"ticker": "NVS", "name": "NVS", "sector": "Healthcare - Drug Mfrs", "weight": 24},
-    {"ticker": "NVO", "name": "NVO", "sector": "Healthcare - Drug Mfrs", "weight": 50},
-    {"ticker": "ABT", "name": "ABT", "sector": "Healthcare - Medical Devices", "weight": 24},
-    {"ticker": "SYK", "name": "SYK", "sector": "Healthcare - Medical Devices", "weight": 18},
-    {"ticker": "MDT", "name": "MDT", "sector": "Healthcare - Medical Devices", "weight": 16},
-    {"ticker": "BSX", "name": "BSX", "sector": "Healthcare - Medical Devices", "weight": 20},
-    {"ticker": "ISRG", "name": "ISRG", "sector": "Healthcare - Medical Devices", "weight": 25},
-    {"ticker": "TMO", "name": "TMO", "sector": "Healthcare - Diagnostics & Research", "weight": 26},
-    {"ticker": "DHR", "name": "DHR", "sector": "Healthcare - Diagnostics & Research", "weight": 22},
-    {"ticker": "UNH", "name": "UNH", "sector": "Healthcare - Healthcare Plans", "weight": 55},
-    {"ticker": "CVS", "name": "CVS", "sector": "Healthcare - Healthcare Plans", "weight": 14},
-    {"ticker": "CI", "name": "CI", "sector": "Healthcare - Healthcare Plans", "weight": 16},
-    {"ticker": "GE", "name": "GE", "sector": "Industrials - Aerospace & Defense", "weight": 24},
-    {"ticker": "BA", "name": "BA", "sector": "Industrials - Aerospace & Defense", "weight": 16},
-    {"ticker": "LMT", "name": "LMT", "sector": "Industrials - Aerospace & Defense", "weight": 18},
-    {"ticker": "RTX", "name": "RTX", "sector": "Industrials - Aerospace & Defense", "weight": 22},
-    {"ticker": "GD", "name": "GD", "sector": "Industrials - Aerospace & Defense", "weight": 14},
-    {"ticker": "CAT", "name": "CAT", "sector": "Industrials - Farm & Construction", "weight": 24},
-    {"ticker": "DE", "name": "DE", "sector": "Industrials - Farm & Construction", "weight": 18},
-    {"ticker": "UNP", "name": "UNP", "sector": "Industrials - Railroads & Logistics", "weight": 20},
-    {"ticker": "HON", "name": "HON", "sector": "Industrials - Conglomerates & Elec", "weight": 18},
-    {"ticker": "ETN", "name": "ETN", "sector": "Industrials - Conglomerates & Elec", "weight": 22},
-    {"ticker": "XOM", "name": "XOM", "sector": "Energy - Oil & Gas Integrated", "weight": 55},
-    {"ticker": "CVX", "name": "CVX", "sector": "Energy - Oil & Gas Integrated", "weight": 32},
-    {"ticker": "SHEL", "name": "SHEL", "sector": "Energy - Oil & Gas Integrated", "weight": 24},
-    {"ticker": "TTE", "name": "TTE", "sector": "Energy - Oil & Gas Integrated", "weight": 20},
-    {"ticker": "COP", "name": "COP", "sector": "Energy - E&P", "weight": 18},
-    {"ticker": "SLB", "name": "SLB", "sector": "Energy - Services", "weight": 14},
+    # Electronic Technology
+    {"ticker": "AAPL", "name": "AAPL", "sector": "Electronic Technology", "weight": 340},
+    {"ticker": "NVDA", "name": "NVDA", "sector": "Electronic Technology", "weight": 310},
+    {"ticker": "AVGO", "name": "AVGO", "sector": "Electronic Technology", "weight": 90},
+    {"ticker": "CSCO", "name": "CSCO", "sector": "Electronic Technology", "weight": 28},
+    {"ticker": "TXN", "name": "TXN", "sector": "Electronic Technology", "weight": 22},
+    {"ticker": "INTC", "name": "INTC", "sector": "Electronic Technology", "weight": 14},
+    {"ticker": "QCOM", "name": "QCOM", "sector": "Electronic Technology", "weight": 26},
+    {"ticker": "MU", "name": "MU", "sector": "Electronic Technology", "weight": 18},
+    {"ticker": "ADI", "name": "ADI", "sector": "Electronic Technology", "weight": 16},
+    {"ticker": "AMAT", "name": "AMAT", "sector": "Electronic Technology", "weight": 22},
+    {"ticker": "LRCX", "name": "LRCX", "sector": "Electronic Technology", "weight": 18},
+    {"ticker": "KLAC", "name": "KLAC", "sector": "Electronic Technology", "weight": 16},
+    {"ticker": "DELL", "name": "DELL", "sector": "Electronic Technology", "weight": 10},
+    {"ticker": "HPQ", "name": "HPQ", "sector": "Electronic Technology", "weight": 8},
+    {"ticker": "WDC", "name": "WDC", "sector": "Electronic Technology", "weight": 7},
+    {"ticker": "STX", "name": "STX", "sector": "Electronic Technology", "weight": 7},
+    {"ticker": "MCHP", "name": "MCHP", "sector": "Electronic Technology", "weight": 6},
+    {"ticker": "ON", "name": "ON", "sector": "Electronic Technology", "weight": 6},
+    {"ticker": "SWKS", "name": "SWKS", "sector": "Electronic Technology", "weight": 5},
+    {"ticker": "GLW", "name": "GLW", "sector": "Electronic Technology", "weight": 6},
+    {"ticker": "TER", "name": "TER", "sector": "Electronic Technology", "weight": 5},
+    {"ticker": "APH", "name": "APH", "sector": "Electronic Technology", "weight": 8},
+    {"ticker": "TEL", "name": "TEL", "sector": "Electronic Technology", "weight": 7},
+    {"ticker": "KEYS", "name": "KEYS", "sector": "Electronic Technology", "weight": 5},
+    # Technology Services
+    {"ticker": "MSFT", "name": "MSFT", "sector": "Technology Services", "weight": 320},
+    {"ticker": "META", "name": "META", "sector": "Technology Services", "weight": 150},
+    {"ticker": "ORCL", "name": "ORCL", "sector": "Technology Services", "weight": 55},
+    {"ticker": "GOOGL", "name": "GOOGL", "sector": "Technology Services", "weight": 220},
+    {"ticker": "ACN", "name": "ACN", "sector": "Technology Services", "weight": 24},
+    {"ticker": "CRM", "name": "CRM", "sector": "Technology Services", "weight": 32},
+    {"ticker": "ADBE", "name": "ADBE", "sector": "Technology Services", "weight": 24},
+    {"ticker": "NFLX", "name": "NFLX", "sector": "Technology Services", "weight": 40},
+    {"ticker": "ADP", "name": "ADP", "sector": "Technology Services", "weight": 14},
+    {"ticker": "NOW", "name": "NOW", "sector": "Technology Services", "weight": 22},
+    {"ticker": "IBM", "name": "IBM", "sector": "Technology Services", "weight": 26},
+    {"ticker": "SNPS", "name": "SNPS", "sector": "Technology Services", "weight": 14},
+    {"ticker": "CDNS", "name": "CDNS", "sector": "Technology Services", "weight": 14},
+    {"ticker": "INTU", "name": "INTU", "sector": "Technology Services", "weight": 20},
+    {"ticker": "PANW", "name": "PANW", "sector": "Technology Services", "weight": 18},
+    {"ticker": "CRWD", "name": "CRWD", "sector": "Technology Services", "weight": 16},
+    {"ticker": "FTNT", "name": "FTNT", "sector": "Technology Services", "weight": 12},
+    {"ticker": "SHOP", "name": "SHOP", "sector": "Technology Services", "weight": 18},
+    {"ticker": "UBER", "name": "UBER", "sector": "Technology Services", "weight": 22},
+    {"ticker": "PYPL", "name": "PYPL", "sector": "Technology Services", "weight": 12},
+    {"ticker": "EA", "name": "EA", "sector": "Technology Services", "weight": 8},
+    {"ticker": "TTWO", "name": "TTWO", "sector": "Technology Services", "weight": 7},
+    # Finance
+    {"ticker": "BRK-B", "name": "BRK.B", "sector": "Finance", "weight": 95},
+    {"ticker": "JPM", "name": "JPM", "sector": "Finance", "weight": 65},
+    {"ticker": "BAC", "name": "BAC", "sector": "Finance", "weight": 32},
+    {"ticker": "WFC", "name": "WFC", "sector": "Finance", "weight": 26},
+    {"ticker": "GS", "name": "GS", "sector": "Finance", "weight": 20},
+    {"ticker": "MS", "name": "MS", "sector": "Finance", "weight": 20},
+    {"ticker": "C", "name": "C", "sector": "Finance", "weight": 18},
+    {"ticker": "SCHW", "name": "SCHW", "sector": "Finance", "weight": 18},
+    {"ticker": "AXP", "name": "AXP", "sector": "Finance", "weight": 24},
+    {"ticker": "BLK", "name": "BLK", "sector": "Finance", "weight": 22},
+    {"ticker": "SPGI", "name": "SPGI", "sector": "Finance", "weight": 22},
+    {"ticker": "COF", "name": "COF", "sector": "Finance", "weight": 12},
+    {"ticker": "USB", "name": "USB", "sector": "Finance", "weight": 10},
+    {"ticker": "PNC", "name": "PNC", "sector": "Finance", "weight": 9},
+    {"ticker": "TFC", "name": "TFC", "sector": "Finance", "weight": 8},
+    {"ticker": "CME", "name": "CME", "sector": "Finance", "weight": 12},
+    {"ticker": "ICE", "name": "ICE", "sector": "Finance", "weight": 10},
+    {"ticker": "MET", "name": "MET", "sector": "Finance", "weight": 8},
+    {"ticker": "PRU", "name": "PRU", "sector": "Finance", "weight": 7},
+    {"ticker": "AIG", "name": "AIG", "sector": "Finance", "weight": 7},
+    {"ticker": "PGR", "name": "PGR", "sector": "Finance", "weight": 20},
+    {"ticker": "CB", "name": "CB", "sector": "Finance", "weight": 16},
+    {"ticker": "KKR", "name": "KKR", "sector": "Finance", "weight": 20},
+    {"ticker": "BX", "name": "BX", "sector": "Finance", "weight": 28},
+    # Health Technology
+    {"ticker": "LLY", "name": "LLY", "sector": "Health Technology", "weight": 85},
+    {"ticker": "JNJ", "name": "JNJ", "sector": "Health Technology", "weight": 40},
+    {"ticker": "ABBV", "name": "ABBV", "sector": "Health Technology", "weight": 35},
+    {"ticker": "MRK", "name": "MRK", "sector": "Health Technology", "weight": 30},
+    {"ticker": "PFE", "name": "PFE", "sector": "Health Technology", "weight": 18},
+    {"ticker": "DHR", "name": "DHR", "sector": "Health Technology", "weight": 22},
+    {"ticker": "TMO", "name": "TMO", "sector": "Health Technology", "weight": 26},
+    {"ticker": "ABT", "name": "ABT", "sector": "Health Technology", "weight": 24},
+    {"ticker": "MDT", "name": "MDT", "sector": "Health Technology", "weight": 16},
+    {"ticker": "SYK", "name": "SYK", "sector": "Health Technology", "weight": 18},
+    {"ticker": "BSX", "name": "BSX", "sector": "Health Technology", "weight": 20},
+    {"ticker": "ISRG", "name": "ISRG", "sector": "Health Technology", "weight": 25},
+    {"ticker": "GILD", "name": "GILD", "sector": "Health Technology", "weight": 16},
+    {"ticker": "AMGN", "name": "AMGN", "sector": "Health Technology", "weight": 15},
+    {"ticker": "BMY", "name": "BMY", "sector": "Health Technology", "weight": 12},
+    {"ticker": "ZTS", "name": "ZTS", "sector": "Health Technology", "weight": 10},
+    {"ticker": "REGN", "name": "REGN", "sector": "Health Technology", "weight": 10},
+    {"ticker": "VRTX", "name": "VRTX", "sector": "Health Technology", "weight": 12},
+    {"ticker": "BDX", "name": "BDX", "sector": "Health Technology", "weight": 8},
+    # Retail Trade
+    {"ticker": "AMZN", "name": "AMZN", "sector": "Retail Trade", "weight": 200},
+    {"ticker": "WMT", "name": "WMT", "sector": "Retail Trade", "weight": 60},
+    {"ticker": "COST", "name": "COST", "sector": "Retail Trade", "weight": 45},
+    {"ticker": "HD", "name": "HD", "sector": "Retail Trade", "weight": 42},
+    {"ticker": "LOW", "name": "LOW", "sector": "Retail Trade", "weight": 20},
+    {"ticker": "TGT", "name": "TGT", "sector": "Retail Trade", "weight": 12},
+    {"ticker": "TJX", "name": "TJX", "sector": "Retail Trade", "weight": 18},
+    {"ticker": "DG", "name": "DG", "sector": "Retail Trade", "weight": 5},
+    {"ticker": "DLTR", "name": "DLTR", "sector": "Retail Trade", "weight": 5},
+    {"ticker": "ROST", "name": "ROST", "sector": "Retail Trade", "weight": 8},
+    {"ticker": "KR", "name": "KR", "sector": "Retail Trade", "weight": 7},
+    {"ticker": "BBY", "name": "BBY", "sector": "Retail Trade", "weight": 5},
+    {"ticker": "ORLY", "name": "ORLY", "sector": "Retail Trade", "weight": 10},
+    {"ticker": "AZO", "name": "AZO", "sector": "Retail Trade", "weight": 9},
+    # Consumer Non-Durables
+    {"ticker": "PG", "name": "PG", "sector": "Consumer Non-Durables", "weight": 45},
+    {"ticker": "KO", "name": "KO", "sector": "Consumer Non-Durables", "weight": 30},
+    {"ticker": "PEP", "name": "PEP", "sector": "Consumer Non-Durables", "weight": 26},
+    {"ticker": "PM", "name": "PM", "sector": "Consumer Non-Durables", "weight": 22},
+    {"ticker": "MO", "name": "MO", "sector": "Consumer Non-Durables", "weight": 14},
+    {"ticker": "NKE", "name": "NKE", "sector": "Consumer Non-Durables", "weight": 16},
+    {"ticker": "MDLZ", "name": "MDLZ", "sector": "Consumer Non-Durables", "weight": 15},
+    {"ticker": "CL", "name": "CL", "sector": "Consumer Non-Durables", "weight": 12},
+    {"ticker": "KMB", "name": "KMB", "sector": "Consumer Non-Durables", "weight": 8},
+    {"ticker": "STZ", "name": "STZ", "sector": "Consumer Non-Durables", "weight": 6},
+    {"ticker": "EL", "name": "EL", "sector": "Consumer Non-Durables", "weight": 5},
+    {"ticker": "KHC", "name": "KHC", "sector": "Consumer Non-Durables", "weight": 6},
+    {"ticker": "GIS", "name": "GIS", "sector": "Consumer Non-Durables", "weight": 6},
+    {"ticker": "MNST", "name": "MNST", "sector": "Consumer Non-Durables", "weight": 10},
+    # Energy Minerals
+    {"ticker": "XOM", "name": "XOM", "sector": "Energy Minerals", "weight": 55},
+    {"ticker": "CVX", "name": "CVX", "sector": "Energy Minerals", "weight": 32},
+    {"ticker": "COP", "name": "COP", "sector": "Energy Minerals", "weight": 18},
+    {"ticker": "EOG", "name": "EOG", "sector": "Energy Minerals", "weight": 10},
+    {"ticker": "PSX", "name": "PSX", "sector": "Energy Minerals", "weight": 7},
+    {"ticker": "MPC", "name": "MPC", "sector": "Energy Minerals", "weight": 7},
+    {"ticker": "VLO", "name": "VLO", "sector": "Energy Minerals", "weight": 6},
+    {"ticker": "OXY", "name": "OXY", "sector": "Energy Minerals", "weight": 6},
+    {"ticker": "WMB", "name": "WMB", "sector": "Energy Minerals", "weight": 8},
+    {"ticker": "KMI", "name": "KMI", "sector": "Energy Minerals", "weight": 7},
+    {"ticker": "SLB", "name": "SLB", "sector": "Energy Minerals", "weight": 14},
+    # Producer Manufacturing
+    {"ticker": "CAT", "name": "CAT", "sector": "Producer Manufacturing", "weight": 24},
+    {"ticker": "DE", "name": "DE", "sector": "Producer Manufacturing", "weight": 18},
+    {"ticker": "HON", "name": "HON", "sector": "Producer Manufacturing", "weight": 18},
+    {"ticker": "ETN", "name": "ETN", "sector": "Producer Manufacturing", "weight": 22},
+    {"ticker": "GE", "name": "GE", "sector": "Producer Manufacturing", "weight": 24},
+    {"ticker": "EMR", "name": "EMR", "sector": "Producer Manufacturing", "weight": 8},
+    {"ticker": "ITW", "name": "ITW", "sector": "Producer Manufacturing", "weight": 8},
+    {"ticker": "PH", "name": "PH", "sector": "Producer Manufacturing", "weight": 7},
+    {"ticker": "ROK", "name": "ROK", "sector": "Producer Manufacturing", "weight": 5},
+    {"ticker": "CMI", "name": "CMI", "sector": "Producer Manufacturing", "weight": 6},
+    # Utilities
     {"ticker": "NEE", "name": "NEE", "sector": "Utilities", "weight": 20},
     {"ticker": "DUK", "name": "DUK", "sector": "Utilities", "weight": 12},
     {"ticker": "SO", "name": "SO", "sector": "Utilities", "weight": 12},
-    {"ticker": "AMT", "name": "AMT", "sector": "Real Estate - REITs", "weight": 16},
-    {"ticker": "PLD", "name": "PLD", "sector": "Real Estate - REITs", "weight": 16},
-    {"ticker": "LIN", "name": "LIN", "sector": "Basic Materials - Chemicals & Gold", "weight": 25},
-    {"ticker": "SHW", "name": "SHW", "sector": "Basic Materials - Chemicals & Gold", "weight": 14},
-    {"ticker": "NEM", "name": "NEM", "sector": "Basic Materials - Chemicals & Gold", "weight": 12},
-    {"ticker": "FCX", "name": "FCX", "sector": "Basic Materials - Chemicals & Gold", "weight": 12}
+    {"ticker": "D", "name": "D", "sector": "Utilities", "weight": 8},
+    {"ticker": "AEP", "name": "AEP", "sector": "Utilities", "weight": 8},
+    {"ticker": "EXC", "name": "EXC", "sector": "Utilities", "weight": 6},
+    {"ticker": "XEL", "name": "XEL", "sector": "Utilities", "weight": 6},
+    {"ticker": "ED", "name": "ED", "sector": "Utilities", "weight": 5},
+    {"ticker": "PEG", "name": "PEG", "sector": "Utilities", "weight": 6},
+    # Health Services
+    {"ticker": "UNH", "name": "UNH", "sector": "Health Services", "weight": 55},
+    {"ticker": "CVS", "name": "CVS", "sector": "Health Services", "weight": 14},
+    {"ticker": "CI", "name": "CI", "sector": "Health Services", "weight": 16},
+    {"ticker": "HUM", "name": "HUM", "sector": "Health Services", "weight": 8},
+    {"ticker": "ELV", "name": "ELV", "sector": "Health Services", "weight": 10},
+    {"ticker": "CNC", "name": "CNC", "sector": "Health Services", "weight": 5},
+    # Process Industries
+    {"ticker": "LIN", "name": "LIN", "sector": "Process Industries", "weight": 25},
+    {"ticker": "SHW", "name": "SHW", "sector": "Process Industries", "weight": 14},
+    {"ticker": "ECL", "name": "ECL", "sector": "Process Industries", "weight": 8},
+    {"ticker": "APD", "name": "APD", "sector": "Process Industries", "weight": 7},
+    {"ticker": "DD", "name": "DD", "sector": "Process Industries", "weight": 6},
+    {"ticker": "DOW", "name": "DOW", "sector": "Process Industries", "weight": 6},
+    {"ticker": "PPG", "name": "PPG", "sector": "Process Industries", "weight": 5},
+    # Transportation
+    {"ticker": "UPS", "name": "UPS", "sector": "Transportation", "weight": 12},
+    {"ticker": "FDX", "name": "FDX", "sector": "Transportation", "weight": 10},
+    {"ticker": "UNP", "name": "UNP", "sector": "Transportation", "weight": 20},
+    {"ticker": "CSX", "name": "CSX", "sector": "Transportation", "weight": 9},
+    {"ticker": "NSC", "name": "NSC", "sector": "Transportation", "weight": 8},
+    {"ticker": "DAL", "name": "DAL", "sector": "Transportation", "weight": 6},
+    {"ticker": "UAL", "name": "UAL", "sector": "Transportation", "weight": 5},
+    {"ticker": "LUV", "name": "LUV", "sector": "Transportation", "weight": 4},
+    # Consumer Services
+    {"ticker": "MCD", "name": "MCD", "sector": "Consumer Services", "weight": 26},
+    {"ticker": "SBUX", "name": "SBUX", "sector": "Consumer Services", "weight": 16},
+    {"ticker": "BKNG", "name": "BKNG", "sector": "Consumer Services", "weight": 22},
+    {"ticker": "ABNB", "name": "ABNB", "sector": "Consumer Services", "weight": 14},
+    {"ticker": "DIS", "name": "DIS", "sector": "Consumer Services", "weight": 22},
+    {"ticker": "MAR", "name": "MAR", "sector": "Consumer Services", "weight": 8},
+    {"ticker": "HLT", "name": "HLT", "sector": "Consumer Services", "weight": 8},
+    {"ticker": "YUM", "name": "YUM", "sector": "Consumer Services", "weight": 6},
+    # Commercial Services
+    {"ticker": "V", "name": "V", "sector": "Commercial Services", "weight": 60},
+    {"ticker": "MA", "name": "MA", "sector": "Commercial Services", "weight": 50},
+    {"ticker": "FIS", "name": "FIS", "sector": "Commercial Services", "weight": 6},
+    {"ticker": "PAYX", "name": "PAYX", "sector": "Commercial Services", "weight": 6},
+    {"ticker": "VRSK", "name": "VRSK", "sector": "Commercial Services", "weight": 5},
+    {"ticker": "CTAS", "name": "CTAS", "sector": "Commercial Services", "weight": 6},
+    {"ticker": "WM", "name": "WM", "sector": "Commercial Services", "weight": 8},
+    {"ticker": "RSG", "name": "RSG", "sector": "Commercial Services", "weight": 7},
+    # Consumer Durables
+    {"ticker": "TSLA", "name": "TSLA", "sector": "Consumer Durables", "weight": 85},
+    {"ticker": "F", "name": "F", "sector": "Consumer Durables", "weight": 12},
+    {"ticker": "GM", "name": "GM", "sector": "Consumer Durables", "weight": 12},
+    {"ticker": "TM", "name": "TM", "sector": "Consumer Durables", "weight": 30},
+    {"ticker": "RACE", "name": "RACE", "sector": "Consumer Durables", "weight": 15},
+    {"ticker": "WHR", "name": "WHR", "sector": "Consumer Durables", "weight": 3},
+    {"ticker": "NVR", "name": "NVR", "sector": "Consumer Durables", "weight": 5},
+    {"ticker": "PHM", "name": "PHM", "sector": "Consumer Durables", "weight": 5},
+    {"ticker": "DHI", "name": "DHI", "sector": "Consumer Durables", "weight": 6},
+    # Communications
+    {"ticker": "T", "name": "T", "sector": "Communications", "weight": 18},
+    {"ticker": "VZ", "name": "VZ", "sector": "Communications", "weight": 20},
+    {"ticker": "TMUS", "name": "TMUS", "sector": "Communications", "weight": 24},
+    {"ticker": "CMCSA", "name": "CMCSA", "sector": "Communications", "weight": 16},
+    # Industrial Services
+    {"ticker": "HAL", "name": "HAL", "sector": "Industrial Services", "weight": 6},
+    {"ticker": "BKR", "name": "BKR", "sector": "Industrial Services", "weight": 5},
+    {"ticker": "URI", "name": "URI", "sector": "Industrial Services", "weight": 6},
+    {"ticker": "FAST", "name": "FAST", "sector": "Industrial Services", "weight": 5},
+    {"ticker": "GWW", "name": "GWW", "sector": "Industrial Services", "weight": 5},
+    {"ticker": "JCI", "name": "JCI", "sector": "Industrial Services", "weight": 6},
+    # Distribution Services
+    {"ticker": "SYY", "name": "SYY", "sector": "Distribution Services", "weight": 5},
+    {"ticker": "MCK", "name": "MCK", "sector": "Distribution Services", "weight": 7},
+    {"ticker": "COR", "name": "COR", "sector": "Distribution Services", "weight": 6},
+    {"ticker": "CDW", "name": "CDW", "sector": "Distribution Services", "weight": 4},
+    # Non-Energy Minerals
+    {"ticker": "NEM", "name": "NEM", "sector": "Non-Energy Minerals", "weight": 12},
+    {"ticker": "FCX", "name": "FCX", "sector": "Non-Energy Minerals", "weight": 12},
+    {"ticker": "AA", "name": "AA", "sector": "Non-Energy Minerals", "weight": 4},
+    {"ticker": "X", "name": "X", "sector": "Non-Energy Minerals", "weight": 3},
 ]
 
 # --- 4. 데이터 페칭 함수 (캐싱 적용) ---
@@ -263,9 +385,87 @@ def fetch_heatmap_data(market_list):
         st.error(f"데이터 연동 중 오류 발생: {e}")
         return pd.DataFrame()
 
-# --- 5. UI 및 대시보드 렌더링 ---
+# --- 5. Finviz 스타일 컬러 매핑 (연속 그라데이션이 아닌 '등급형' 배색) ---
+def get_finviz_color(pct: float) -> str:
+    """등락률을 Finviz 클래식 팔레트(딥레드~그레이~딥그린)의 등급 색상으로 변환."""
+    if pct <= -3:
+        return "#a50e0e"
+    elif pct <= -2:
+        return "#c9302c"
+    elif pct <= -1:
+        return "#e0605c"
+    elif pct <= -0.3:
+        return "#f0928f"
+    elif pct < 0.3:
+        return "#d5d5d5"  # 보합 구간은 회색 (예: AAPL +0.33%처럼 살짝 움직여도 그레이 처리하려면 임계값 조정)
+    elif pct < 1:
+        return "#8fce9e"
+    elif pct < 2:
+        return "#4caf6e"
+    elif pct < 3:
+        return "#2e8b4f"
+    else:
+        return "#1a6b35"
+
+
+def build_finviz_treemap(df: pd.DataFrame) -> go.Figure:
+    ids, labels, parents, values, colors, customdata = [], [], [], [], [], []
+
+    # 루트
+    ids.append("root")
+    labels.append("")
+    parents.append("")
+    values.append(0)
+    colors.append("#ffffff")
+    customdata.append(["", "", ""])
+
+    # 섹터(부모) 노드 - 헤더처럼 흰 배경 + 검은 글씨로 고정
+    sector_totals = df.groupby("Sector")["Weight"].sum().to_dict()
+    for sector, total_w in sector_totals.items():
+        ids.append(sector)
+        labels.append(f"{sector} ›")
+        parents.append("root")
+        values.append(total_w)
+        colors.append("#ffffff")
+        customdata.append(["", "", ""])
+
+    # 종목(리프) 노드 - 등락률에 따른 등급 색상
+    for _, row in df.iterrows():
+        ids.append(row["Ticker"])
+        labels.append(f"<b>{row['Ticker']}</b><br>{row['ChangeText']}")
+        parents.append(row["Sector"])
+        values.append(max(row["Weight"], 0.1))
+        colors.append(get_finviz_color(row["Change"]))
+        customdata.append([row["Name"], row["ChangeText"], row["Ticker"]])
+
+    fig = go.Figure(go.Treemap(
+        ids=ids,
+        labels=labels,
+        parents=parents,
+        values=values,
+        branchvalues="total",
+        marker=dict(colors=colors, line=dict(color="#ffffff", width=2)),
+        customdata=customdata,
+        texttemplate="%{label}",
+        textfont=dict(color="#111111", family="Arial, Helvetica, sans-serif"),
+        hovertemplate="<b>%{customdata[0]}</b> (%{customdata[2]})<br>변동률: %{customdata[1]}<extra></extra>",
+        pathbar=dict(visible=False),
+        tiling=dict(pad=2),
+    ))
+
+    fig.update_layout(
+        template="plotly_white",
+        paper_bgcolor="#ffffff",
+        plot_bgcolor="#ffffff",
+        height=850,
+        margin=dict(l=0, r=0, t=10, b=0),
+    )
+    return fig
+
+
+# --- 6. UI 및 대시보드 렌더링 ---
 st.title("🛰️ ZION : MARKET MAP TERMINAL")
-st.write("시가총액 규모 및 당일 등락률을 트리맵 형태로 시각화합니다. (Finviz 스타일 히트맵)")
+st.write("시가총액 규모 및 당일 등락률을 트리맵 형태로 시각화합니다. (Finviz 클래식 스타일)")
 st.write("---")
 
 col_market, _ = st.columns([2, 3])
@@ -280,63 +480,7 @@ with st.spinner("📡 시장 데이터 수집 및 비주얼 매핑 중..."):
 if not df_heatmap.empty:
     df_heatmap["Weight"] = pd.to_numeric(df_heatmap["Weight"])
 
-    # ---------------------------------------------------------
-    # 🎨 [핵심 변경] Finviz / TradingView 식의 가장 대중적인 히트맵 컬러 스케일
-    # 단계별로 색을 끊어서(step) 등락 구간이 명확히 구분되도록 표현
-    # ---------------------------------------------------------
-    FINVIZ_COLORSCALE = [
-        [0.00, "#7a0d0d"],  # -3% 이하: 진한 다크레드
-        [0.20, "#b5100f"],  # -1.8% : 레드
-        [0.40, "#e0403f"],  # -0.5% : 밝은 레드
-        [0.50, "#3a3d4a"],  # 0%    : 보합(다크 그레이)
-        [0.60, "#2f8f4e"],  # +0.5% : 밝은 그린
-        [0.80, "#1f9e4e"],  # +1.8% : 그린
-        [1.00, "#0c6e2e"],  # +3% 이상: 진한 다크그린
-    ]
-
-    fig = px.treemap(
-        df_heatmap,
-        path=["Sector", "Ticker"],
-        values="Weight",
-        color="Change",
-        color_continuous_scale=FINVIZ_COLORSCALE,
-        color_continuous_midpoint=0,
-        range_color=[-3, 3],
-        custom_data=["Name", "ChangeText", "Ticker"]
-    )
-
-    # 텍스트: 폰트 크기를 고정하지 않아 박스 크기에 맞춰 자동으로 줄어들도록 처리 (Finviz 특유의 가독성)
-    fig.update_traces(
-        textposition="middle center",
-        textfont=dict(color="white", family="Arial, Helvetica, sans-serif"),
-        texttemplate="<b>%{customdata[2]}</b><br>%{customdata[1]}",
-        hovertemplate="<b>%{customdata[0]}</b> (%{customdata[2]})<br>변동률: %{customdata[1]}<br>비중: %{value}<extra></extra>",
-        marker=dict(
-            line=dict(color="#131722", width=1.2)  # 얇은 그리드형 테두리 (대형 히트맵의 표준)
-        ),
-        tiling=dict(
-            pad=1  # 박스 사이 여백을 최소화해 빈틈없이 꽉 찬 '타일' 느낌으로
-        ),
-        pathbar=dict(visible=True, textfont=dict(size=14, color="white")),
-        root_color="#131722"
-    )
-
-    fig.update_layout(
-        template="plotly_dark",
-        paper_bgcolor="#131722",
-        plot_bgcolor="#131722",
-        height=850,
-        margin=dict(l=0, r=0, t=30, b=0),
-        coloraxis_colorbar=dict(
-            title=dict(text="등락률", font=dict(color="white")),
-            thickness=14,
-            ticksuffix="%",
-            dtick=1,
-            tickfont=dict(color="white"),
-            outlinewidth=0
-        ),
-        font=dict(color="white")
-    )
+    fig = build_finviz_treemap(df_heatmap)
 
     # ---------------------------------------------------------
     # 🚀 [클릭 로직] plotly_events를 써서 클릭 신호 수신
@@ -350,12 +494,11 @@ if not df_heatmap.empty:
         key="treemap_click"
     )
 
-    # 클릭 이벤트 감지 및 처리
     if clicked_data:
         try:
             point_index = clicked_data[0].get("pointNumber")
             if point_index is not None:
-                clicked_ticker = fig.data[0].customdata[point_index][0]
+                clicked_ticker = fig.data[0].customdata[point_index][2]
                 if clicked_ticker and str(clicked_ticker) not in ["(?)", "None", ""]:
                     st.session_state.ticker_val = clicked_ticker
                     st.session_state.ticker_input_key = clicked_ticker
