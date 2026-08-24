@@ -411,16 +411,17 @@ def get_finviz_color(pct: float) -> str:
 def build_finviz_treemap(df: pd.DataFrame) -> go.Figure:
     ids, labels, parents, values, colors, customdata = [], [], [], [], [], []
 
-    # 루트
+    # 섹터(부모) 노드 - 헤더처럼 흰 배경 + 검은 글씨로 고정
+    sector_totals = df.groupby("Sector")["Weight"].sum().to_dict()
+
+    # 루트: branchvalues="total" 사용 시 부모 값 = 자식 값의 합이어야 렌더링됨 (0으로 두면 트리맵이 빈 화면으로 나옴)
     ids.append("root")
     labels.append("")
     parents.append("")
-    values.append(0)
+    values.append(sum(sector_totals.values()))
     colors.append("#ffffff")
     customdata.append(["", "", ""])
 
-    # 섹터(부모) 노드 - 헤더처럼 흰 배경 + 검은 글씨로 고정
-    sector_totals = df.groupby("Sector")["Weight"].sum().to_dict()
     for sector, total_w in sector_totals.items():
         ids.append(sector)
         labels.append(f"{sector} ›")
