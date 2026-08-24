@@ -17,15 +17,22 @@ if os.path.exists(icon_path):
 else:
     st.set_page_config(page_title="ZION | Market Heatmap", page_icon="🗺️", layout="wide")
 
-# --- 2. 하이테크 스타일링 CSS ---
+# --- 2. 파이낸스 히트맵(Finviz 스타일) CSS ---
 st.markdown("""
     <style>
+    /* 전체 배경을 진한 차콜톤으로 통일 */
+    .stApp {
+        background-color: #131722;
+    }
     div[data-testid="metric-container"] {
-        background-color: rgba(0, 212, 255, 0.05);
-        border: 1px solid rgba(0, 212, 255, 0.2);
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         padding: 15px;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        border-radius: 8px;
+    }
+    /* 라디오 버튼 라벨 스타일 */
+    div[role="radiogroup"] label {
+        font-weight: 600;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -258,7 +265,7 @@ def fetch_heatmap_data(market_list):
 
 # --- 5. UI 및 대시보드 렌더링 ---
 st.title("🛰️ ZION : MARKET MAP TERMINAL")
-st.write("시가총액 규모 및 당일 등락률을 트리맵 형태로 시각화합니다.")
+st.write("시가총액 규모 및 당일 등락률을 트리맵 형태로 시각화합니다. (Finviz 스타일 히트맵)")
 st.write("---")
 
 col_market, _ = st.columns([2, 3])
@@ -272,58 +279,74 @@ with st.spinner("📡 시장 데이터 수집 및 비주얼 매핑 중..."):
 
 if not df_heatmap.empty:
     df_heatmap["Weight"] = pd.to_numeric(df_heatmap["Weight"])
-    
-    # Plotly Treemap 생성
+
+    # ---------------------------------------------------------
+    # 🎨 [핵심 변경] Finviz / TradingView 식의 가장 대중적인 히트맵 컬러 스케일
+    # 단계별로 색을 끊어서(step) 등락 구간이 명확히 구분되도록 표현
+    # ---------------------------------------------------------
+    FINVIZ_COLORSCALE = [
+        [0.00, "#7a0d0d"],  # -3% 이하: 진한 다크레드
+        [0.20, "#b5100f"],  # -1.8% : 레드
+        [0.40, "#e0403f"],  # -0.5% : 밝은 레드
+        [0.50, "#3a3d4a"],  # 0%    : 보합(다크 그레이)
+        [0.60, "#2f8f4e"],  # +0.5% : 밝은 그린
+        [0.80, "#1f9e4e"],  # +1.8% : 그린
+        [1.00, "#0c6e2e"],  # +3% 이상: 진한 다크그린
+    ]
+
     fig = px.treemap(
         df_heatmap,
-        path=["Sector", "Ticker"], # 👈 Name(삼성전자) 대신 Ticker(005930.KS)를 써서 사진처럼 깔끔하게!
+        path=["Sector", "Ticker"],
         values="Weight",
         color="Change",
-        color_continuous_scale=[
-            [0.0, "#f63538"],    # 찐한 하락 (트레이딩뷰 빨강)
-            [0.5, "#414554"],    # 보합 (다크 네이비/그레이)
-            [1.0, "#30cc5a"]     # 찐한 상승 (트레이딩뷰 초록)
-        ],
+        color_continuous_scale=FINVIZ_COLORSCALE,
         color_continuous_midpoint=0,
-        range_color=[-3, 3],     # 👈 범위를 -3% ~ 3%로 좁혀서, 조금만 올라도 색상이 강렬하게 뿜어져 나오도록 세팅
+        range_color=[-3, 3],
         custom_data=["Name", "ChangeText", "Ticker"]
     )
 
-    # 텍스트 레이아웃 및 테두리(Border) 디테일 설정
+    # 텍스트: 폰트 크기를 고정하지 않아 박스 크기에 맞춰 자동으로 줄어들도록 처리 (Finviz 특유의 가독성)
     fig.update_traces(
         textposition="middle center",
-        textfont=dict(color="white", size=16, family="Arial Black"),
-        texttemplate="<b>%{label}</b><br>%{customdata[1]}", # Ticker와 등락률만 가운데에 딱!
-        hovertemplate="<b>%{customdata[0]}</b> (%{customdata[2]})<br>변동률: %{customdata[1]}<br>비중: %{value}",
+        textfont=dict(color="white", family="Arial, Helvetica, sans-serif"),
+        texttemplate="<b>%{customdata[2]}</b><br>%{customdata[1]}",
+        hovertemplate="<b>%{customdata[0]}</b> (%{customdata[2]})<br>변동률: %{customdata[1]}<br>비중: %{value}<extra></extra>",
         marker=dict(
-            line=dict(color='#0d0d0d', width=2) # 👈 상자마다 까만 굵은 테두리를 쳐서 블록 분리
+            line=dict(color="#131722", width=1.2)  # 얇은 그리드형 테두리 (대형 히트맵의 표준)
         ),
         tiling=dict(
-            pad=3 # 👈 [핵심] 섹터 덩어리(그룹) 사이에 여백을 줘서 사진처럼 구역을 확실하게 나눔
-        )
+            pad=1  # 박스 사이 여백을 최소화해 빈틈없이 꽉 찬 '타일' 느낌으로
+        ),
+        pathbar=dict(visible=True, textfont=dict(size=14, color="white")),
+        root_color="#131722"
     )
 
     fig.update_layout(
         template="plotly_dark",
+        paper_bgcolor="#131722",
+        plot_bgcolor="#131722",
         height=850,
-        margin=dict(l=0, r=0, t=10, b=0),
+        margin=dict(l=0, r=0, t=30, b=0),
         coloraxis_colorbar=dict(
-            title="",
-            thickness=15, # 우측 컬러바를 얇고 세련되게 (사진과 유사하게)
+            title=dict(text="등락률", font=dict(color="white")),
+            thickness=14,
             ticksuffix="%",
-            dtick=2
-        )
+            dtick=1,
+            tickfont=dict(color="white"),
+            outlinewidth=0
+        ),
+        font=dict(color="white")
     )
 
     # ---------------------------------------------------------
-    # 🚀 [진짜 클릭 로직] plotly_events를 써서 클릭 신호 수신
+    # 🚀 [클릭 로직] plotly_events를 써서 클릭 신호 수신
     # ---------------------------------------------------------
     clicked_data = plotly_events(
-        fig, 
-        click_event=True, 
-        hover_event=False, 
+        fig,
+        click_event=True,
+        hover_event=False,
         select_event=False,
-        override_height=800,  # 상단의 height=800 과 일치시켜서 UI 틀어짐 방지
+        override_height=850,
         key="treemap_click"
     )
 
@@ -334,7 +357,6 @@ if not df_heatmap.empty:
             if point_index is not None:
                 clicked_ticker = fig.data[0].customdata[point_index][0]
                 if clicked_ticker and str(clicked_ticker) not in ["(?)", "None", ""]:
-                    # 세션 업데이트 및 이동
                     st.session_state.ticker_val = clicked_ticker
                     st.session_state.ticker_input_key = clicked_ticker
                     st.session_state.run_analysis = True
@@ -347,18 +369,17 @@ if not df_heatmap.empty:
     # ---------------------------------------------------------
     st.write("---")
     st.subheader("📊 섹터별 동향 요약")
-    
+
     gainers = df_heatmap[df_heatmap["Change"] > 0]
     losers = df_heatmap[df_heatmap["Change"] < 0]
-    
+
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("상승 종목 수", f"{len(gainers)} 개")
     m2.metric("하락 종목 수", f"{len(losers)} 개")
-    
-    # 데이터가 비어있을 경우 발생하는 에러 방지
+
     max_gainer = df_heatmap.loc[df_heatmap['Change'].idxmax()] if not gainers.empty else None
     min_loser = df_heatmap.loc[df_heatmap['Change'].idxmin()] if not losers.empty else None
-    
+
     m3.metric("최대 상승 종목", f"{max_gainer['Name']} ({max_gainer['Change']:+.2f}%)" if max_gainer is not None else "-")
     m4.metric("최대 하락 종목", f"{min_loser['Name']} ({min_loser['Change']:+.2f}%)" if min_loser is not None else "-")
 
