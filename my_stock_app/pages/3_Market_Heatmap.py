@@ -276,33 +276,40 @@ if not df_heatmap.empty:
     # Plotly Treemap 생성
     fig = px.treemap(
         df_heatmap,
-        path=["Sector", "Name"],
+        path=["Sector", "Ticker"], # 👈 Name(삼성전자) 대신 Ticker(005930.KS)를 써서 사진처럼 깔끔하게!
         values="Weight",
         color="Change",
         color_continuous_scale=[
-            [0.0, "#ff0055"],    # 강력한 하락 (밝은 붉은색)
-            [0.5, "#151515"],    # 보합 (아주 짙은 회색)
-            [1.0, "#00ff66"]     # 강력한 상승 (네온 녹색)
+            [0.0, "#f63538"],    # 찐한 하락 (트레이딩뷰 빨강)
+            [0.5, "#414554"],    # 보합 (다크 네이비/그레이)
+            [1.0, "#30cc5a"]     # 찐한 상승 (트레이딩뷰 초록)
         ],
         color_continuous_midpoint=0,
-        range_color=[-5, 5],     # 변동률을 -5% ~ +5%로 고정
-        custom_data=["Ticker", "ChangeText", "Name"]
+        range_color=[-3, 3],     # 👈 범위를 -3% ~ 3%로 좁혀서, 조금만 올라도 색상이 강렬하게 뿜어져 나오도록 세팅
+        custom_data=["Name", "ChangeText", "Ticker"]
     )
 
-    # 텍스트 레이아웃 및 툴팁 서식 지정
+    # 텍스트 레이아웃 및 테두리(Border) 디테일 설정
     fig.update_traces(
-        textposition="middle center", 
-        textfont=dict(color="white", size=14, family="Arial Black"), 
-        texttemplate="<b>%{label}</b><br>%{customdata[1]}",
-        hovertemplate="<b>종목:</b> %{label} (%{customdata[0]})<br><b>변동률:</b> %{customdata[1]}<br><b>비중 지수:</b> %{value}"
+        textposition="middle center",
+        textfont=dict(color="white", size=16, family="Arial Black"),
+        texttemplate="<b>%{label}</b><br>%{customdata[1]}", # Ticker와 등락률만 가운데에 딱!
+        hovertemplate="<b>%{customdata[0]}</b> (%{customdata[2]})<br>변동률: %{customdata[1]}<br>비중: %{value}",
+        marker=dict(
+            line=dict(color='#0d0d0d', width=2) # 👈 상자마다 까만 굵은 테두리를 쳐서 블록 분리
+        ),
+        tiling=dict(
+            pad=3 # 👈 [핵심] 섹터 덩어리(그룹) 사이에 여백을 줘서 사진처럼 구역을 확실하게 나눔
+        )
     )
 
     fig.update_layout(
         template="plotly_dark",
-        height=800, 
-        margin=dict(l=0, r=0, t=30, b=0), 
+        height=850,
+        margin=dict(l=0, r=0, t=10, b=0),
         coloraxis_colorbar=dict(
-            title="등락률 (%)",
+            title="",
+            thickness=15, # 우측 컬러바를 얇고 세련되게 (사진과 유사하게)
             ticksuffix="%",
             dtick=2
         )
