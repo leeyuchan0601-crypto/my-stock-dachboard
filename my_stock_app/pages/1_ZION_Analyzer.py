@@ -253,9 +253,13 @@ with st.sidebar:
     qcols = st.columns(3)
     for i, tk in enumerate(quick_tickers):
         with qcols[i % 3]:
-            if st.button(tk, key=f"quick_{tk}", use_container_width=True):
-                select_quick_ticker(tk)
-                st.rerun()
+            st.button(
+                tk,
+                key=f"quick_{tk}",
+                use_container_width=True,
+                on_click=select_quick_ticker,
+                args=(tk,),
+            )
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.write("---")
