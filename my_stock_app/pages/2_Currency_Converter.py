@@ -4,8 +4,13 @@ import pandas as pd
 import plotly.graph_objects as go
 from PIL import Image
 import os
+import sys
 
-# --- 0. 환율 동기화 및 계산 로직 ---
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import theme
+from auth import user_switcher_widget, ensure_user
+
+
 @st.cache_data(ttl=600)
 def get_rate(ticker):
     try:
@@ -16,6 +21,7 @@ def get_rate(ticker):
     except Exception:
         return None
 
+
 @st.cache_data(ttl=600)
 def get_rate_history(ticker, period="7d"):
     try:
@@ -24,33 +30,28 @@ def get_rate_history(ticker, period="7d"):
     except Exception:
         return None
 
+
 def sync_foreign_to_krw():
     rate = st.session_state.current_rate
     is_jpy = "JPY" in st.session_state.selected_curr
     base_rate = rate * 100 if is_jpy else rate
-
     amount = st.session_state.foreign_input
-    if is_jpy:
-        st.session_state.krw_input = (amount / 100) * base_rate
-    else:
-        st.session_state.krw_input = amount * base_rate
+    st.session_state.krw_input = (amount / 100 * base_rate) if is_jpy else (amount * base_rate)
+
 
 def sync_krw_to_foreign():
     rate = st.session_state.current_rate
     is_jpy = "JPY" in st.session_state.selected_curr
     base_rate = rate * 100 if is_jpy else rate
-
     amount = st.session_state.krw_input
-    if is_jpy:
-        st.session_state.foreign_input = (amount / base_rate) * 100
-    else:
-        st.session_state.foreign_input = amount / base_rate
+    st.session_state.foreign_input = (amount / base_rate * 100) if is_jpy else (amount / base_rate)
+
 
 def set_preset_amount(value):
     st.session_state.foreign_input = float(value)
     sync_foreign_to_krw()
 
-# --- 1. 페이지 설정 ---
+
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 icon_path = os.path.join(parent_dir, "ark_base.png")
@@ -61,64 +62,29 @@ if os.path.exists(icon_path):
 else:
     st.set_page_config(page_title="ZION | Currency", page_icon="💱", layout="wide")
 
-# --- 2. 라이트 모던 테마 CSS ---
+theme.inject_base_css()
+user_switcher_widget()
+ensure_user()
+
 st.markdown("""
     <style>
-    .stApp { background-color: #f8fafc; }
-    h1, h3 { color: #0f172a !important; font-weight: 800 !important; }
-    p, span, label { color: #475569; }
-
     .stNumberInput > div > div > input {
-        background-color: #ffffff;
-        color: #2563eb;
-        border: 1.5px solid #2563eb;
-        font-size: 30px !important;
-        font-weight: 800;
-        height: 68px;
-        text-align: center;
-        border-radius: 10px;
+        background-color: #ffffff; color: #2563eb; border: 1.5px solid #2563eb;
+        font-size: 30px !important; font-weight: 800; height: 68px; text-align: center; border-radius: 10px;
     }
-    .curr-label {
-        font-size: 18px;
-        color: #0f172a;
-        font-weight: 700;
-        margin-bottom: 8px;
-        text-align: center;
-    }
-    .sync-icon {
-        font-size: 34px;
-        text-align: center;
-        margin-top: 40px;
-        color: #94a3b8;
-    }
-    div[data-testid="metric-container"] {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        padding: 16px;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-    }
-    div[data-testid="metric-container"] label { color: #64748b !important; font-weight: 600; }
-    div[data-testid="metric-container"] div { color: #0f172a !important; }
-
+    .curr-label { font-size: 18px; color: #0f172a; font-weight: 700; margin-bottom: 8px; text-align: center; }
+    .sync-icon { font-size: 34px; text-align: center; margin-top: 40px; color: #94a3b8; }
     .preset button {
-        border-radius: 8px !important;
-        border: 1px solid #e2e8f0 !important;
-        background-color: #ffffff !important;
-        color: #2563eb !important;
-        font-weight: 700 !important;
+        border-radius: 8px !important; border: 1px solid #e2e8f0 !important;
+        background-color: #ffffff !important; color: #2563eb !important; font-weight: 700 !important;
     }
-    .preset button:hover {
-        background-color: #2563eb !important;
-        color: #ffffff !important;
-    }
+    .preset button:hover { background-color: #2563eb !important; color: #ffffff !important; }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🛰️ ZION : DUAL-SYNC CURRENCY TERMINAL")
+theme.page_header("DUAL-SYNC CURRENCY TERMINAL", icon="🛰️")
 st.write("---")
 
-# --- 3. 세션 상태 초기화 ---
 currencies = {
     "USD (미국 달러)": {"ticker": "USDKRW=X", "unit": "USD"},
     "JPY (일본 엔)": {"ticker": "JPYKRW=X", "unit": "JPY"},
@@ -130,7 +96,6 @@ if 'foreign_input' not in st.session_state: st.session_state.foreign_input = 1.0
 if 'krw_input' not in st.session_state: st.session_state.krw_input = 1350.0
 if 'selected_curr' not in st.session_state: st.session_state.selected_curr = "USD (미국 달러)"
 
-# --- 4. 메인 UI ---
 col_sel, _ = st.columns([2, 3])
 with col_sel:
     new_curr = st.selectbox("변환 대상 통화 선택", list(currencies.keys()), key="selected_curr")
@@ -143,20 +108,13 @@ if rate:
 
     with c1:
         st.markdown(f'<div class="curr-label">{new_curr}</div>', unsafe_allow_html=True)
-        st.number_input(
-            "외화 입력",
-            key="foreign_input",
-            on_change=sync_foreign_to_krw,
-            label_visibility="collapsed"
-        )
+        st.number_input("외화 입력", key="foreign_input", on_change=sync_foreign_to_krw, label_visibility="collapsed")
         st.markdown('<div class="preset">', unsafe_allow_html=True)
         p1, p2, p3, p4 = st.columns(4)
-        presets = [1, 100, 1000, 10000]
-        for col, val in zip([p1, p2, p3, p4], presets):
+        for col, val in zip([p1, p2, p3, p4], [1, 100, 1000, 10000]):
             with col:
-                if st.button(f"{val:,}", key=f"preset_{val}", use_container_width=True):
-                    set_preset_amount(val)
-                    st.rerun()
+                st.button(f"{val:,}", key=f"preset_{val}", use_container_width=True,
+                          on_click=set_preset_amount, args=(val,))
         st.markdown('</div>', unsafe_allow_html=True)
 
     with c2:
@@ -164,12 +122,7 @@ if rate:
 
     with c3:
         st.markdown('<div class="curr-label">KRW (대한민국 원)</div>', unsafe_allow_html=True)
-        st.number_input(
-            "원화 입력",
-            key="krw_input",
-            on_change=sync_krw_to_foreign,
-            label_visibility="collapsed"
-        )
+        st.number_input("원화 입력", key="krw_input", on_change=sync_krw_to_foreign, label_visibility="collapsed")
 
     st.write("---")
     is_jpy = "JPY" in new_curr
@@ -181,37 +134,24 @@ if rate:
     m1.metric("기준 환율", f"{display_rate:,.2f} KRW", help=f"{unit_text} 당 가격")
     m2.metric("통화 기호", currencies[new_curr]['unit'])
     m3.metric("데이터 소스", "Yahoo Finance")
-
     st.caption(f"🕒 최종 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    # --- 5. 최근 7일 환율 추이 미니 차트 ---
     st.write("---")
     st.subheader("📈 최근 7일 환율 추이")
     hist = get_rate_history(currencies[new_curr]['ticker'], period="7d")
     if hist is not None and not hist.empty:
         trend_series = hist['Close'] * 100 if is_jpy else hist['Close']
         fig = go.Figure()
-        fig.add_trace(go.Scatter(
-            x=hist.index, y=trend_series,
-            mode='lines+markers',
-            line=dict(color='#2563eb', width=2.5),
-            marker=dict(size=5, color='#2563eb'),
-            fill='tozeroy',
-            fillcolor='rgba(37, 99, 235, 0.08)'
-        ))
-        fig.update_layout(
-            template='plotly_white',
-            paper_bgcolor='#ffffff',
-            plot_bgcolor='#ffffff',
-            height=280,
-            margin=dict(l=10, r=10, t=10, b=10),
-            yaxis=dict(title=f"KRW / {unit_text}", gridcolor="#e2e8f0"),
-            xaxis=dict(gridcolor="#e2e8f0"),
-        )
+        fig.add_trace(go.Scatter(x=hist.index, y=trend_series, mode='lines+markers',
+                                  line=dict(color='#2563eb', width=2.5), marker=dict(size=5, color='#2563eb'),
+                                  fill='tozeroy', fillcolor='rgba(37, 99, 235, 0.08)'))
+        fig.update_layout(template='plotly_white', paper_bgcolor='#ffffff', plot_bgcolor='#ffffff',
+                           height=280, margin=dict(l=10, r=10, t=10, b=10),
+                           yaxis=dict(title=f"KRW / {unit_text}", gridcolor="#e2e8f0"),
+                           xaxis=dict(gridcolor="#e2e8f0"))
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.caption("추이 데이터를 불러오지 못했습니다.")
-
 else:
     st.error("📡 외계 신호 간섭(데이터 로드 실패): 환율 정보를 가져올 수 없습니다.")
 
