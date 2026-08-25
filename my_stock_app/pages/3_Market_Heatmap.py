@@ -17,18 +17,35 @@ if os.path.exists(icon_path):
 else:
     st.set_page_config(page_title="ZION | Market Heatmap", page_icon="🗺️", layout="wide")
 
-# --- 2. Finviz 클래식(화이트) 테마 CSS ---
+# --- 2. 라이트 모던 테마 CSS (ZION 앱 전체 톤에 맞춤) ---
 st.markdown("""
     <style>
-    .stApp { background-color: #ffffff; }
-    h1, h2, h3, p, span, label { color: #111111 !important; }
+    .stApp { background-color: #f8fafc; }
+    h1, h3 { color: #0f172a !important; font-weight: 800 !important; }
+    p, span, label { color: #475569; }
     div[data-testid="metric-container"] {
-        background-color: #f5f5f7;
-        border: 1px solid #e0e0e0;
-        padding: 15px;
-        border-radius: 8px;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        padding: 16px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
     }
-    div[data-testid="metric-container"] label, div[data-testid="metric-container"] div { color: #111111 !important; }
+    div[data-testid="metric-container"] label { color: #64748b !important; font-weight: 600; }
+    div[data-testid="metric-container"] div { color: #0f172a !important; }
+
+    .legend-wrap {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        flex-wrap: wrap;
+        background-color: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px 16px;
+        margin-bottom: 14px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #334155; font-weight: 600; }
+    .legend-swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -480,6 +497,19 @@ with st.spinner("📡 시장 데이터 수집 및 비주얼 매핑 중..."):
 
 if not df_heatmap.empty:
     df_heatmap["Weight"] = pd.to_numeric(df_heatmap["Weight"])
+
+    # 색상 등급 범례
+    st.markdown("""
+        <div class="legend-wrap">
+            <span style="font-size:13px; color:#64748b; font-weight:700;">등락률 범례</span>
+            <div class="legend-item"><span class="legend-swatch" style="background:#a50e0e;"></span>-3% 이하</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#e0605c;"></span>-1%~-2%</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#d5d5d5;"></span>보합</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#8fce9e;"></span>+0.3%~+1%</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#1a6b35;"></span>+3% 이상</div>
+        </div>
+        """, unsafe_allow_html=True)
+    st.caption(f"🕒 최종 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')} · 박스를 클릭하면 해당 종목 분석 페이지로 이동합니다.")
 
     fig = build_finviz_treemap(df_heatmap)
 
