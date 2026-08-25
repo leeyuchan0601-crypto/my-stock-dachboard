@@ -6,41 +6,21 @@ import pandas as pd
 import datetime
 from PIL import Image
 import os
-import json
+import sys
 
-# --- 0. 데이터 관리 및 콜백 함수 ---
-HISTORY_FILE = "search_history.json"
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import theme
+import db
+from auth import user_switcher_widget, ensure_user
 
-def load_history():
-    if os.path.exists(HISTORY_FILE):
-        try:
-            with open(HISTORY_FILE, "r") as f:
-                return json.load(f)
-        except Exception:
-            return []
-    return []
-
-def save_history(history):
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(history, f)
-
-def on_ticker_enter():
-    if "ticker_input_key" in st.session_state:
-        input_val = st.session_state.ticker_input_key.upper().strip()
-        if input_val:
-            if input_val in st.session_state.history:
-                st.session_state.history.remove(input_val)
-            st.session_state.history.insert(0, input_val)
-            save_history(st.session_state.history)
-            st.session_state.ticker_val = input_val
-            st.session_state.run_analysis = True
 
 def select_quick_ticker(tk):
     st.session_state.ticker_val = tk
     st.session_state.ticker_input_key = tk
     st.session_state.run_analysis = True
 
-# --- 1. 페이지 설정 및 아이콘 ---
+
+# --- 페이지 설정 ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 icon_path = os.path.join(parent_dir, "ark_base.png")
@@ -51,41 +31,12 @@ if os.path.exists(icon_path):
 else:
     st.set_page_config(page_title="ZION | Analyzer", page_icon="📈", layout="wide")
 
-# --- 2. 라이트 모던 테마 CSS ---
-st.markdown("""
-    <style>
-    .stApp { background-color: #f8fafc; }
-    h1, h3 { color: #0f172a !important; font-weight: 800 !important; }
-    p, span, label { color: #475569; }
+theme.inject_base_css()
+user_switcher_widget()
+USER_ID = ensure_user()
 
-    div[data-testid="metric-container"] {
-        background-color: #ffffff;
-        border: 1px solid #e2e8f0;
-        padding: 16px;
-        border-radius: 12px;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-    }
-    div[data-testid="metric-container"] label { color: #64748b !important; font-weight: 600; }
-    div[data-testid="metric-container"] div { color: #0f172a !important; }
 
-    .stTabs [data-baseweb="tab-list"] { gap: 20px; }
-    .stTabs [data-baseweb="tab"] { height: 48px; font-weight: 700; }
-
-    .quick-tk button {
-        border-radius: 8px !important;
-        border: 1px solid #e2e8f0 !important;
-        background-color: #ffffff !important;
-        color: #2563eb !important;
-        font-weight: 700 !important;
-    }
-    .quick-tk button:hover {
-        background-color: #2563eb !important;
-        color: #ffffff !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- 3. 분석 클래스 ---
+# --- 분석 클래스 ---
 class StockAnalyzer():
     def __init__(self, ticker):
         self.ticker = ticker
@@ -99,7 +50,7 @@ class StockAnalyzer():
 
         with st.spinner(f"📡 [ZION] {self.ticker} 동기화 중..."):
             try:
-                data = yf.download(self.ticker, start=extended_start, end=end_date)
+                data = yf.download(self.ticker, start=extended_start, end=end_date, threads=True)
                 if data.empty:
                     st.error("데이터가 없습니다. 종목 코드를 확인해주세요.")
                     return False
@@ -136,7 +87,6 @@ class StockAnalyzer():
 
     def display_metrics(self):
         display_df = self.get_display_df()
-        # 선택한 구간에 표시할 데이터가 2개 미만이면(전일 대비 계산 불가) 안내만 하고 종료
         if len(display_df) < 2:
             st.info("선택한 기간이 너무 짧아 전일 대비 정보를 계산할 수 없습니다. 시작일을 더 이전으로 넓혀주세요.")
             return
@@ -211,13 +161,9 @@ class StockAnalyzer():
                                   line=dict(color='#16a34a', width=1, dash='dash'), showlegend=False), row=2, col=1)
 
         fig.update_layout(
-            template='plotly_white',
-            paper_bgcolor='#ffffff',
-            plot_bgcolor='#ffffff',
-            height=800,
-            title_text=f"🛰️ {self.ticker} INTERACTIVE TERMINAL",
-            hovermode='x unified',
-            showlegend=True,
+            template='plotly_white', paper_bgcolor='#ffffff', plot_bgcolor='#ffffff',
+            height=800, title_text=f"🛰️ {self.ticker} INTERACTIVE TERMINAL",
+            hovermode='x unified', showlegend=True,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             margin=dict(l=10, r=10, t=50, b=10)
         )
@@ -227,9 +173,111 @@ class StockAnalyzer():
 
         st.plotly_chart(fig, use_container_width=True)
 
+    def run_backtest(self):
+        """MA5/MA20 크로스 전략을 신호대로 매매했을 때의 누적 수익률 vs Buy&Hold 비교."""
+        display_df = self.get_display_df()
+        if len(display_df) < 10:
+            st.info("백테스트를 하기엔 구간이 너무 짧습니다. 최소 몇 주 이상의 기간을 선택해주세요.")
+            return
 
-# --- 4. 사이드바 및 히스토리 로직 ---
-if 'history' not in st.session_state: st.session_state.history = load_history()
+        position = 0
+        entry_price = 0.0
+        trades = []
+        equity = 1.0
+        equity_curve = []
+
+        for _, row in display_df.iterrows():
+            price = float(row['Close'])
+            if position == 0 and row['Signal'] == 1:
+                position = 1
+                entry_price = price
+            elif position == 1 and row['Signal'] == -1:
+                ret = (price - entry_price) / entry_price
+                equity *= (1 + ret)
+                trades.append(ret)
+                position = 0
+            equity_curve.append(equity * ((price / entry_price) if position == 1 else 1))
+
+        strategy_return = (equity - 1) * 100
+        buyhold_return = (float(display_df['Close'].iloc[-1]) / float(display_df['Close'].iloc[0]) - 1) * 100
+        win_trades = [t for t in trades if t > 0]
+        win_rate = (len(win_trades) / len(trades) * 100) if trades else 0.0
+
+        b1, b2, b3, b4 = st.columns(4)
+        b1.metric("전략 누적 수익률", f"{strategy_return:+.2f}%")
+        b2.metric("단순 보유(Buy&Hold)", f"{buyhold_return:+.2f}%")
+        b3.metric("완결된 매매 횟수", f"{len(trades)} 회")
+        b4.metric("승률", f"{win_rate:.1f}%" if trades else "N/A")
+
+        if strategy_return > buyhold_return:
+            st.success(f"이 구간에서는 MA크로스 전략이 단순 보유보다 {strategy_return - buyhold_return:+.2f}%p 더 나았습니다.")
+        else:
+            st.warning(f"이 구간에서는 단순 보유가 전략보다 {buyhold_return - strategy_return:+.2f}%p 더 나았습니다.")
+
+        eq_df = pd.DataFrame({"날짜": display_df.index, "전략 자산 추이": equity_curve})
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=eq_df["날짜"], y=eq_df["전략 자산 추이"], name="전략",
+                                  line=dict(color="#2563eb", width=2)))
+        bh_curve = display_df['Close'] / float(display_df['Close'].iloc[0])
+        fig.add_trace(go.Scatter(x=display_df.index, y=bh_curve, name="Buy & Hold",
+                                  line=dict(color="#94a3b8", width=2, dash="dash")))
+        fig.update_layout(template='plotly_white', paper_bgcolor='#ffffff', plot_bgcolor='#ffffff',
+                           height=380, margin=dict(l=10, r=10, t=30, b=10),
+                           yaxis=dict(title="자산 배수(시작=1.0)", gridcolor="#e2e8f0"),
+                           xaxis=dict(gridcolor="#e2e8f0"))
+        st.plotly_chart(fig, use_container_width=True)
+        st.caption("⚠️ 과거 데이터 기반 시뮬레이션이며, 수수료·세금·슬리피지는 반영되지 않았습니다. 실제 투자 성과와 다를 수 있습니다.")
+
+
+@st.cache_data(ttl=600)
+def fetch_compare_series(tickers, start, end):
+    out = {}
+    for tk in tickers:
+        try:
+            data = yf.download(tk, start=start, end=end, threads=True)
+            if isinstance(data.columns, pd.MultiIndex):
+                data.columns = data.columns.get_level_values(0)
+            if not data.empty:
+                out[tk] = data['Close']
+        except Exception:
+            continue
+    return out
+
+
+def render_compare_tab(default_ticker, start_d, end_d):
+    st.caption("여러 종목의 수익률을 시작일 기준 100으로 정규화해서 비교합니다.")
+    candidates = list(dict.fromkeys([default_ticker] + db.get_history(USER_ID, limit=15)))
+    picked = st.multiselect("비교할 종목 선택 (최대 5개)", options=candidates,
+                             default=candidates[:min(2, len(candidates))], max_selections=5)
+    extra = st.text_input("직접 추가 (쉼표로 구분, 예: AAPL,MSFT)")
+    if extra:
+        picked += [t.strip().upper() for t in extra.split(",") if t.strip()]
+    picked = list(dict.fromkeys(picked))
+
+    if len(picked) < 2:
+        st.info("2개 이상의 종목을 선택하면 비교 차트가 나타납니다.")
+        return
+
+    series_map = fetch_compare_series(tuple(picked), start_d, end_d)
+    if not series_map:
+        st.error("비교할 데이터를 불러오지 못했습니다.")
+        return
+
+    fig = go.Figure()
+    palette = ["#2563eb", "#16a34a", "#dc2626", "#7c3aed", "#f59e0b"]
+    for i, (tk, series) in enumerate(series_map.items()):
+        normalized = series / series.iloc[0] * 100
+        fig.add_trace(go.Scatter(x=normalized.index, y=normalized, name=tk,
+                                  line=dict(color=palette[i % len(palette)], width=2)))
+    fig.update_layout(template='plotly_white', paper_bgcolor='#ffffff', plot_bgcolor='#ffffff',
+                       height=450, margin=dict(l=10, r=10, t=30, b=10),
+                       yaxis=dict(title="정규화 지수(시작=100)", gridcolor="#e2e8f0"),
+                       xaxis=dict(gridcolor="#e2e8f0"),
+                       legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    st.plotly_chart(fig, use_container_width=True)
+
+
+# --- 사이드바 ---
 if 'ticker_val' not in st.session_state: st.session_state.ticker_val = "ORCL"
 if 'run_analysis' not in st.session_state: st.session_state.run_analysis = False
 
@@ -238,6 +286,13 @@ with st.sidebar:
 
     if "ticker_input_key" not in st.session_state or st.session_state.ticker_input_key != st.session_state.ticker_val:
         st.session_state.ticker_input_key = st.session_state.ticker_val
+
+    def on_ticker_enter():
+        if "ticker_input_key" in st.session_state:
+            input_val = st.session_state.ticker_input_key.upper().strip()
+            if input_val:
+                st.session_state.ticker_val = input_val
+                st.session_state.run_analysis = True
 
     ticker_input = st.text_input("종목 코드", key="ticker_input_key", on_change=on_ticker_enter).upper().strip()
 
@@ -249,55 +304,53 @@ with st.sidebar:
     st.write("---")
     st.caption("⚡ 빠른 선택")
     quick_tickers = ["AAPL", "NVDA", "TSLA", "MSFT", "005930.KS", "SPY"]
-    st.markdown('<div class="quick-tk">', unsafe_allow_html=True)
     qcols = st.columns(3)
     for i, tk in enumerate(quick_tickers):
         with qcols[i % 3]:
-            st.button(
-                tk,
-                key=f"quick_{tk}",
-                use_container_width=True,
-                on_click=select_quick_ticker,
-                args=(tk,),
-            )
-    st.markdown('</div>', unsafe_allow_html=True)
+            st.button(tk, key=f"quick_{tk}", use_container_width=True,
+                      on_click=select_quick_ticker, args=(tk,))
 
     st.write("---")
     st.subheader("📜 최근 검색 기록")
-    if not st.session_state.history:
+    history = db.get_history(USER_ID, limit=10)
+    if not history:
         st.caption("아직 검색 기록이 없습니다.")
-    for h_ticker in st.session_state.history[:10]:
+    for h_ticker in history:
         h_col1, h_col2 = st.columns([4, 1])
         if h_col1.button(f"🔍 {h_ticker}", key=f"h_{h_ticker}", use_container_width=True):
             st.session_state.ticker_val = h_ticker
             st.session_state.run_analysis = True
             st.rerun()
         if h_col2.button("🗑️", key=f"d_{h_ticker}"):
-            st.session_state.history.remove(h_ticker)
-            save_history(st.session_state.history)
+            db.delete_history(USER_ID, h_ticker)
             st.rerun()
 
-# --- 5. 메인 분석 실행부 ---
+# --- 메인 실행부 ---
 if analyze_btn or st.session_state.run_analysis:
     st.session_state.run_analysis = False
     final_ticker = ticker_input if analyze_btn else st.session_state.ticker_val
-    if final_ticker and final_ticker not in st.session_state.history:
-        st.session_state.history.insert(0, final_ticker)
-        save_history(st.session_state.history)
+    if final_ticker:
+        db.add_history(USER_ID, final_ticker)
 
     analyzer = StockAnalyzer(final_ticker)
     if analyzer.fetch_data(start_d, end_d):
         analyzer.calculate_indicators()
         analyzer.get_signals()
-        st.title(f"🛰️ {final_ticker} SYSTEM DIAGNOSTICS")
+        theme.page_header(f"{final_ticker} SYSTEM DIAGNOSTICS")
         analyzer.display_metrics()
         st.write("---")
-        tab1, tab2, tab3 = st.tabs(["📊 ANALYSIS CHART", "💼 FINANCIAL DATA", "📜 RAW LOGS"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(
+            ["📊 CHART", "🧪 BACKTEST", "🔍 COMPARE", "💼 FINANCIALS", "📜 RAW LOGS"]
+        )
         with tab1:
             analyzer.visualize()
         with tab2:
-            analyzer.display_financials()
+            analyzer.run_backtest()
         with tab3:
+            render_compare_tab(final_ticker, start_d, end_d)
+        with tab4:
+            analyzer.display_financials()
+        with tab5:
             raw_df = analyzer.get_display_df().tail(30)
             st.dataframe(raw_df, use_container_width=True)
             st.download_button(
@@ -308,5 +361,4 @@ if analyze_btn or st.session_state.run_analysis:
                 use_container_width=True,
             )
 else:
-    st.title("🛰️ ZION ANALYZER")
-    st.info("왼쪽 사이드바에서 종목 코드를 입력하거나, 빠른 선택 버튼을 눌러 분석을 시작하세요.")
+    theme.page_header("ZION ANALYZER", "왼쪽 사이드바에서 종목 코드를 입력하거나, 빠른 선택 버튼을 눌러 분석을 시작하세요.")
