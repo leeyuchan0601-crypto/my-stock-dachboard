@@ -8,7 +8,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import theme
-from auth import user_switcher_widget, ensure_user
+from auth import require_login, ensure_user
 
 
 @st.cache_data(ttl=600)
@@ -63,7 +63,7 @@ else:
     st.set_page_config(page_title="ZION | Currency", page_icon="💱", layout="wide")
 
 theme.inject_base_css()
-user_switcher_widget()
+require_login()
 ensure_user()
 
 st.markdown("""
