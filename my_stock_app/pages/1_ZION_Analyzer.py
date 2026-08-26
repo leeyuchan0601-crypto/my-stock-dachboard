@@ -11,7 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import theme
 import db
-from auth import user_switcher_widget, ensure_user
+from auth import require_login, ensure_user
 
 
 def select_quick_ticker(tk):
@@ -32,7 +32,7 @@ else:
     st.set_page_config(page_title="ZION | Analyzer", page_icon="📈", layout="wide")
 
 theme.inject_base_css()
-user_switcher_widget()
+require_login()
 USER_ID = ensure_user()
 
 
