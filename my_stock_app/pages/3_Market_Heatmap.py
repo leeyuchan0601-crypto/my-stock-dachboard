@@ -10,7 +10,7 @@ from streamlit_plotly_events import plotly_events
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import theme
 import db
-from auth import user_switcher_widget, ensure_user
+from auth import require_login, ensure_user
 from data_source import smart_cache_ttl
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +24,7 @@ else:
     st.set_page_config(page_title="ZION | Market Heatmap", page_icon="🗺️", layout="wide")
 
 theme.inject_base_css()
-user_switcher_widget()
+require_login()
 USER_ID = ensure_user()
 
 st.markdown("""
