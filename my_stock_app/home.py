@@ -5,7 +5,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import theme
-from auth import user_switcher_widget, ensure_user
+from auth import require_login, ensure_user
 
 image_path = "ark_base.png"
 if os.path.exists(image_path):
@@ -15,7 +15,7 @@ else:
     st.set_page_config(page_title="ZION | Gateway", page_icon="🛰️", layout="wide")
 
 theme.inject_base_css()
-user_switcher_widget()
+require_login()
 user_id = ensure_user()
 
 st.markdown("""
@@ -37,7 +37,7 @@ st.markdown('<div class="zion-hero">', unsafe_allow_html=True)
 st.title("ZION")
 st.markdown('<p class="zion-tagline">금융의 심연을 꿰뚫는 최후의 시선</p>', unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
-st.caption(f"👋 {user_id}님, 환영합니다.")
+st.caption(f"👋 {st.user.name}님, 환영합니다.")
 st.write("---")
 
 pages = [
