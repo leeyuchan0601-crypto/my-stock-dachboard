@@ -5,3 +5,4 @@ Pillow>=10.4
 plotly>=5.24
 streamlit-plotly-events>=0.0.6
 requests>=2.32
+Authlib>=1.3.2
