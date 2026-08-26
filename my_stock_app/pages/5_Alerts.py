@@ -9,7 +9,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import theme
 import db
-from auth import user_switcher_widget, ensure_user
+from auth import require_login, ensure_user
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -22,7 +22,7 @@ else:
     st.set_page_config(page_title="ZION | Alerts", page_icon="🔔", layout="wide")
 
 theme.inject_base_css()
-user_switcher_widget()
+require_login()
 USER_ID = ensure_user()
 
 theme.page_header("SIGNAL ALERTS", "관심 종목의 매수/매도 시그널을 확인하고 Slack으로 알림을 보냅니다.")
