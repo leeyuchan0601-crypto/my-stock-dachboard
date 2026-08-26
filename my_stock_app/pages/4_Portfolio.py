@@ -8,7 +8,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import theme
 import db
-from auth import user_switcher_widget, ensure_user
+from auth import require_login, ensure_user
 from data_source import fetch_price_with_fallback
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,11 +22,11 @@ else:
     st.set_page_config(page_title="ZION | Portfolio", page_icon="💼", layout="wide")
 
 theme.inject_base_css()
-user_switcher_widget()
+require_login()
 USER_ID = ensure_user()
 
 theme.page_header("PORTFOLIO TRACKER", "내가 보유한 종목의 실시간 평가손익을 확인합니다.")
-st.caption(f"👤 현재 닉네임: **{USER_ID}** (닉네임별로 데이터가 구분돼요)")
+st.caption(f"👤 로그인 계정: **{USER_ID}** (계정별로 데이터가 구분돼요)")
 st.write("---")
 
 with st.container(border=True):
