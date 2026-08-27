@@ -339,6 +339,7 @@ def fetch_heatmap_data(market_list, ttl_seconds):
         close_data = data["Close"] if isinstance(data.columns, pd.MultiIndex) else data
 
         results = []
+        failed_tickers = []
         for item in market_list:
             tk = item["ticker"]
             if tk in close_data.columns:
@@ -348,21 +349,32 @@ def fetch_heatmap_data(market_list, ttl_seconds):
                     prev_price = series.iloc[-2]
                     pct_change = ((curr_price - prev_price) / prev_price) * 100
                 else:
-                    pct_change = 0.0
+                    pct_change = float("nan")
+                    failed_tickers.append(tk)
             else:
-                pct_change = 0.0
+                pct_change = float("nan")
+                failed_tickers.append(tk)
 
+            change_text = f"{pct_change:+.2f}%" if pd.notna(pct_change) else "N/A"
             results.append({
                 "Ticker": tk, "Name": item["name"], "Sector": item["sector"], "Weight": item["weight"],
-                "Change": round(pct_change, 2), "ChangeText": f"{pct_change:+.2f}%"
+                "Change": round(pct_change, 2) if pd.notna(pct_change) else float("nan"),
+                "ChangeText": change_text,
             })
+
+        if failed_tickers:
+            # "0%"로 조용히 둔갑시키지 않고, 데이터 조회에 실패한 종목이 있다는 걸 명확히 알림
+            st.caption(f"⚠️ {len(failed_tickers)}개 종목의 시세를 가져오지 못했습니다(회색 N/A로 표시): "
+                       f"{', '.join(failed_tickers[:8])}{' 외' if len(failed_tickers) > 8 else ''}")
+
         return pd.DataFrame(results)
     except Exception as e:
         st.error(f"데이터 연동 중 오류 발생: {e}")
         return pd.DataFrame()
 
 
-def get_finviz_color(pct: float) -> str:
+def get_finviz_color(pct) -> str:
+    if pd.isna(pct): return "#94a3b8"  # 데이터 없음(N/A) — 보합(#d5d5d5)과 확실히 구분되는 색
     if pct <= -3: return "#a50e0e"
     elif pct <= -2: return "#c9302c"
     elif pct <= -1: return "#e0605c"
@@ -431,6 +443,7 @@ if not df_heatmap.empty:
             <div class="legend-item"><span class="legend-swatch" style="background:#d5d5d5;"></span>보합</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#8fce9e;"></span>+0.3%~+1%</div>
             <div class="legend-item"><span class="legend-swatch" style="background:#1a6b35;"></span>+3% 이상</div>
+            <div class="legend-item"><span class="legend-swatch" style="background:#94a3b8;"></span>N/A(조회 실패)</div>
         </div>
         """, unsafe_allow_html=True)
     st.caption(
