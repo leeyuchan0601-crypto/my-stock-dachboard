@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import theme
 import db
 from auth import require_login, ensure_user
-from data_source import smart_cache_ttl
+from data_source import smart_cache_ttl, download_with_retry
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -331,7 +331,7 @@ def fetch_heatmap_data(market_list, ttl_seconds):
     @st.cache_data(ttl=ttl_seconds)
     def _cached(tickers_tuple):
         tickers = list(tickers_tuple)
-        data = yf.download(tickers, period="5d", progress=False, threads=True)
+        data = download_with_retry(tickers, period="5d", progress=False, threads=True)
         return data
 
     try:
