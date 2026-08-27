@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import theme
 import db
 from auth import require_login, ensure_user
+from data_source import download_with_retry
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -84,7 +85,7 @@ st.write("")
 # --- 3. 시그널 계산 ---
 def compute_signal(ticker):
     try:
-        data = yf.download(ticker, period="6mo", progress=False, threads=True)
+        data = download_with_retry(ticker, period="6mo", progress=False, threads=True)
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.get_level_values(0)
         if data.empty or len(data) < 25:
