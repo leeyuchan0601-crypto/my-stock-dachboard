@@ -14,9 +14,39 @@
    '대략적인' 휴리스틱이라 완벽한 장 캘린더가 필요하면 pandas_market_calendars 도입을 권장.
 """
 import datetime
+import time
+import functools
 import requests
 import streamlit as st
 import yfinance as yf
+
+
+def with_retry(retries: int = 3, base_delay: float = 1.5):
+    """
+    일시적인 오류(야후 rate limit, yfinance 내부 캐시 DB 잠금 등)에 대비한 재시도 데코레이터.
+    실패할 때마다 base_delay * (2 ** 시도횟수) 만큼 대기 후 다시 시도함 (지수 백오프).
+    마지막 시도까지 실패하면 원래 예외를 그대로 올림.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            last_exc = None
+            for attempt in range(retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    last_exc = e
+                    if attempt < retries - 1:
+                        time.sleep(base_delay * (2 ** attempt))
+            raise last_exc
+        return wrapper
+    return decorator
+
+
+@with_retry(retries=3, base_delay=1.5)
+def download_with_retry(tickers, **kwargs):
+    """yf.download를 재시도 로직으로 감싼 버전. 히트맵/알림처럼 여러 종목을 한 번에 받을 때 사용."""
+    return yf.download(tickers, **kwargs)
 
 
 def _is_krx_hours(now_kst: datetime.datetime) -> bool:
