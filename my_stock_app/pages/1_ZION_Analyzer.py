@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import theme
 import db
 from auth import require_login, ensure_user
+from data_source import download_with_retry
 
 
 def select_quick_ticker(tk):
@@ -50,7 +51,7 @@ class StockAnalyzer():
 
         with st.spinner(f"📡 [ZION] {self.ticker} 동기화 중..."):
             try:
-                data = yf.download(self.ticker, start=extended_start, end=end_date, threads=True)
+                data = download_with_retry(self.ticker, start=extended_start, end=end_date, threads=True)
                 if data.empty:
                     st.error("데이터가 없습니다. 종목 코드를 확인해주세요.")
                     return False
@@ -234,7 +235,7 @@ def fetch_compare_series(tickers, start, end):
     out = {}
     for tk in tickers:
         try:
-            data = yf.download(tk, start=start, end=end, threads=True)
+            data = download_with_retry(tk, start=start, end=end, threads=True)
             if isinstance(data.columns, pd.MultiIndex):
                 data.columns = data.columns.get_level_values(0)
             if not data.empty:
