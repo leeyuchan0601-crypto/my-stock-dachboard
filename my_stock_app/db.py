@@ -15,7 +15,12 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "zion.db")
 
 
 def get_conn():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
+    # WAL(Write-Ahead Logging) 모드: 읽기와 쓰기가 서로를 덜 막도록 해서
+    # 여러 사용자가 동시에 접속해도 "database is locked" 에러가 훨씬 덜 남.
+    conn.execute("PRAGMA journal_mode=WAL;")
+    # 잠금이 걸려도 즉시 에러 내지 않고 최대 30초까지 기다렸다가 재시도하게 함.
+    conn.execute("PRAGMA busy_timeout=30000;")
     conn.execute("""CREATE TABLE IF NOT EXISTS search_history (
         user_id TEXT, ticker TEXT, searched_at TEXT
     )""")
