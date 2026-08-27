@@ -56,44 +56,54 @@ if not holdings:
     st.info("아직 보유 종목이 없습니다. 위에서 추가해보세요.")
 else:
     rows = []
+    failed_tickers = []
     with st.spinner("📡 실시간 시세 조회 중..."):
         for rowid, ticker, shares, avg_price in holdings:
             curr_price, change_pct = fetch_price_with_fallback(ticker)
-            if curr_price is None:
-                curr_price = avg_price
-                change_pct = 0.0
+            price_failed = curr_price is None
+            if price_failed:
+                failed_tickers.append(ticker)
             cost = shares * avg_price
-            value = shares * curr_price
-            pnl = value - cost
-            pnl_pct = (pnl / cost * 100) if cost else 0.0
+            # 가격 조회에 실패하면 매수 단가로 대체하지 않고, 계산 자체를 하지 않음(N/A로 표시)
+            value = (shares * curr_price) if not price_failed else float("nan")
+            pnl = (value - cost) if not price_failed else float("nan")
+            pnl_pct = (pnl / cost * 100) if (not price_failed and cost) else float("nan")
             rows.append({
                 "rowid": rowid, "종목": ticker, "수량": shares, "평균단가": avg_price,
-                "현재가": curr_price, "당일등락률": change_pct, "평가금액": value,
-                "평가손익": pnl, "손익률(%)": pnl_pct,
+                "현재가": curr_price if not price_failed else float("nan"),
+                "당일등락률": change_pct if not price_failed else float("nan"),
+                "평가금액": value, "평가손익": pnl, "손익률(%)": pnl_pct,
+                "가격조회실패": price_failed,
             })
 
-    df = pd.DataFrame(rows)
+    if failed_tickers:
+        st.warning(f"⚠️ 다음 종목은 실시간 시세를 가져오지 못해 손익 계산에서 제외했습니다: {', '.join(failed_tickers)}")
 
-    total_cost = (df["수량"] * df["평균단가"]).sum()
-    total_value = df["평가금액"].sum()
+    df = pd.DataFrame(rows)
+    ok_df = df[~df["가격조회실패"]]
+
+    total_cost = (ok_df["수량"] * ok_df["평균단가"]).sum()
+    total_value = ok_df["평가금액"].sum()
     total_pnl = total_value - total_cost
     total_pnl_pct = (total_pnl / total_cost * 100) if total_cost else 0.0
 
     m1, m2, m3 = st.columns(3)
-    m1.metric("총 평가금액", f"{total_value:,.2f}")
+    m1.metric("총 평가금액", f"{total_value:,.2f}" + (" *" if failed_tickers else ""))
     m2.metric("총 평가손익", f"{total_pnl:,.2f}", f"{total_pnl_pct:+.2f}%")
     m3.metric("보유 종목 수", f"{len(df)} 개")
+    if failed_tickers:
+        st.caption("* 시세 조회 실패 종목은 총액 계산에서 제외됨")
 
     st.write("---")
     col_table, col_pie = st.columns([3, 2])
 
     with col_table:
         st.subheader("📋 보유 종목 상세")
-        display_df = df.drop(columns=["rowid"]).copy()
+        display_df = df.drop(columns=["rowid", "가격조회실패"]).copy()
         for col in ["평균단가", "현재가", "평가금액", "평가손익"]:
-            display_df[col] = display_df[col].map(lambda x: f"{x:,.2f}")
-        display_df["당일등락률"] = df["당일등락률"].map(lambda x: f"{x:+.2f}%")
-        display_df["손익률(%)"] = df["손익률(%)"].map(lambda x: f"{x:+.2f}%")
+            display_df[col] = df[col].map(lambda x: f"{x:,.2f}" if pd.notna(x) else "N/A")
+        display_df["당일등락률"] = df["당일등락률"].map(lambda x: f"{x:+.2f}%" if pd.notna(x) else "N/A")
+        display_df["손익률(%)"] = df["손익률(%)"].map(lambda x: f"{x:+.2f}%" if pd.notna(x) else "N/A")
         st.dataframe(display_df, use_container_width=True, hide_index=True)
 
         del_col1, del_col2 = st.columns([3, 1])
@@ -109,7 +119,7 @@ else:
     with col_pie:
         st.subheader("🥧 자산 비중")
         fig = go.Figure(data=[go.Pie(
-            labels=df["종목"], values=df["평가금액"], hole=0.45,
+            labels=ok_df["종목"], values=ok_df["평가금액"], hole=0.45,
             marker=dict(colors=["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777"]),
         )])
         fig.update_layout(template="plotly_white", paper_bgcolor="#ffffff", height=350,
