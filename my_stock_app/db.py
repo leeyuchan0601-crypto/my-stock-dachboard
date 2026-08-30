@@ -3,7 +3,7 @@ search_history.json 을 대체하는 SQLite 저장소.
 Streamlit Cloud처럼 재배포 시 파일시스템이 리셋되는 환경에서도, 앱이 살아있는 동안은
 JSON 파일보다 다루기 쉽고 사용자별(user_id) 데이터 분리가 자연스러움.
 
-⚠️ 주의: Streamlit Cloud 무료 티어는 컨테이너가 재시작되면 로컬 디스크(SQLite 파일 포함)가
+주의: Streamlit Cloud 무료 티어는 컨테이너가 재시작되면 로컬 디스크(SQLite 파일 포함)가
 초기화될 수 있음. 데이터를 영구 보존하려면 Supabase, Turso 같은 외부 DB로 옮기는 게 안전함.
 지금은 '로컬 파일 기반'에서 한 단계 나아간 버전으로 이해하면 됨.
 """
