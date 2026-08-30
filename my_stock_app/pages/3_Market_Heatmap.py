@@ -21,7 +21,7 @@ if os.path.exists(icon_path):
     img = Image.open(icon_path)
     st.set_page_config(page_title="ZION | Market Heatmap", page_icon=img, layout="wide")
 else:
-    st.set_page_config(page_title="ZION | Market Heatmap", page_icon="🗺️", layout="wide")
+    st.set_page_config(page_title="ZION | Market Heatmap", page_icon="Z", layout="wide")
 
 theme.inject_base_css()
 require_login()
@@ -364,7 +364,7 @@ def fetch_heatmap_data(market_list, ttl_seconds):
 
         if failed_tickers:
             # "0%"로 조용히 둔갑시키지 않고, 데이터 조회에 실패한 종목이 있다는 걸 명확히 알림
-            st.caption(f"⚠️ {len(failed_tickers)}개 종목의 시세를 가져오지 못했습니다(회색 N/A로 표시): "
+            st.caption(f"{len(failed_tickers)}개 종목의 시세를 가져오지 못했습니다(회색 N/A로 표시):"
                        f"{', '.join(failed_tickers[:8])}{' 외' if len(failed_tickers) > 8 else ''}")
 
         return pd.DataFrame(results)
@@ -448,7 +448,7 @@ if not df_heatmap.empty:
         </div>
         """, unsafe_allow_html=True)
     st.caption(
-        f"🕒 최종 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')} · "
+        f"최종 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')} ·"
         f"캐시 주기: 장중 {60}s / 장마감 {1800}s(스마트 조정) · 박스를 클릭하면 해당 종목 분석 페이지로 이동합니다."
     )
 
@@ -472,7 +472,7 @@ if not df_heatmap.empty:
             st.error(f"클릭 처리 중 오류: {e}")
 
     st.write("---")
-    st.subheader("📊 섹터별 동향 요약")
+    st.subheader("섹터별 동향 요약")
     gainers = df_heatmap[df_heatmap["Change"] > 0]
     losers = df_heatmap[df_heatmap["Change"] < 0]
     m1, m2, m3, m4 = st.columns(4)
