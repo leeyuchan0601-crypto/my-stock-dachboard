@@ -49,22 +49,22 @@ def require_login():
     """
     if not _auth_configured():
         st.error(
-            "⚠️ 로그인 기능이 아직 설정되지 않았어요. "
+            "로그인 기능이 아직 설정되지 않았어요."
             "secrets.toml(또는 Streamlit Cloud의 Secrets 설정)에 [auth] / [auth.google] 값을 "
             "채워 넣어야 로그인을 쓸 수 있어요."
         )
         st.stop()
 
     if not is_logged_in():
-        st.title("🔐 ZION 로그인")
+        st.title("ZION 로그인")
         st.write("Google 계정으로 로그인하면 내 포트폴리오·관심종목·검색 기록이 저장돼요.")
-        st.button("🔑 Google로 로그인", type="primary", on_click=st.login, args=("google",))
+        st.button("Google로 로그인", type="primary", on_click=st.login, args=("google",))
         st.stop()
 
     with st.sidebar:
-        st.caption("👤 로그인 계정")
+        st.caption("로그인 계정")
         name = getattr(st.user, "name", None) or st.user.email
         st.markdown(f"**{name}**")
         st.caption(st.user.email)
-        if st.button("🚪 로그아웃", use_container_width=True):
+        if st.button("로그아웃", use_container_width=True):
             st.logout()
