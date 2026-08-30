@@ -54,6 +54,18 @@ def inject_base_css():
             h1 {{ font-size: 24px !important; }}
             h3 {{ font-size: 18px !important; }}
         }}
+
+        /* 스켈레톤 로딩 박스: 무거운 데이터를 불러오는 동안 빈 화면 대신 표시 */
+        @keyframes zion-shimmer {{
+            0% {{ background-position: -400px 0; }}
+            100% {{ background-position: 400px 0; }}
+        }}
+        .zion-skeleton {{
+            border-radius: 12px;
+            background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
+            background-size: 800px 100%;
+            animation: zion-shimmer 1.4s ease-in-out infinite;
+        }}
         </style>
         """, unsafe_allow_html=True)
 
@@ -62,3 +74,14 @@ def page_header(title: str, subtitle: str = None, icon: str = "🛰️"):
     st.title(f"{icon} {title}")
     if subtitle:
         st.caption(subtitle)
+
+
+def skeleton(height: int = 400, key: str = "default"):
+    """무거운 데이터 로딩 중 보여줄 스켈레톤(반짝이는 회색 박스) placeholder.
+    사용법: ph = theme.skeleton(850); ... 데이터 준비되면 ph.empty() 로 지우고 실제 내용을 그림."""
+    ph = st.empty()
+    ph.markdown(
+        f'<div class="zion-skeleton" style="height:{height}px; width:100%;"></div>',
+        unsafe_allow_html=True,
+    )
+    return ph
