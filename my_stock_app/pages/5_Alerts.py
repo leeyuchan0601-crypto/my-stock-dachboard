@@ -5,6 +5,7 @@ import requests
 from PIL import Image
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import theme
@@ -120,11 +121,20 @@ if not watchlist:
 else:
     if st.button("⚡ 전체 신호 확인 & Slack 알림 보내기", type="primary", use_container_width=True):
         results = []
-        with st.spinner("📡 신호 계산 중..."):
-            for tk in watchlist:
-                r = compute_signal(tk)
+        progress_box = st.status("📡 관심 종목 신호 계산 중...", expanded=True)
+        with ThreadPoolExecutor(max_workers=min(8, len(watchlist))) as executor:
+            future_to_tk = {executor.submit(compute_signal, tk): tk for tk in watchlist}
+            done_count = 0
+            for future in as_completed(future_to_tk):
+                tk = future_to_tk[future]
+                done_count += 1
+                r = future.result()
                 if r:
                     results.append(r)
+                    progress_box.write(f"({done_count}/{len(watchlist)}) {tk} → {r['signal']}")
+                else:
+                    progress_box.write(f"({done_count}/{len(watchlist)}) {tk} → 조회 실패")
+        progress_box.update(label="✅ 신호 계산 완료", state="complete", expanded=False)
 
         if results:
             df = pd.DataFrame(results)
