@@ -20,18 +20,18 @@ if os.path.exists(icon_path):
     img = Image.open(icon_path)
     st.set_page_config(page_title="ZION | Portfolio", page_icon=img, layout="wide")
 else:
-    st.set_page_config(page_title="ZION | Portfolio", page_icon="💼", layout="wide")
+    st.set_page_config(page_title="ZION | Portfolio", page_icon="Z", layout="wide")
 
 theme.inject_base_css()
 require_login()
 USER_ID = ensure_user()
 
 theme.page_header("PORTFOLIO TRACKER", "내가 보유한 종목의 실시간 평가손익을 확인합니다.")
-st.caption(f"👤 로그인 계정: **{USER_ID}** (계정별로 데이터가 구분돼요)")
+st.caption(f"로그인 계정: **{USER_ID}** (계정별로 데이터가 구분돼요)")
 st.write("---")
 
 with st.container(border=True):
-    st.subheader("➕ 보유 종목 추가")
+    st.subheader("보유 종목 추가")
     c1, c2, c3, c4 = st.columns([2, 1, 1, 1])
     with c1:
         add_ticker = st.text_input("종목 코드", placeholder="예: AAPL, 005930.KS").upper().strip()
@@ -58,7 +58,7 @@ if not holdings:
 else:
     rows = []
     failed_tickers = []
-    progress_box = st.status("📡 보유 종목 실시간 시세 조회 중...", expanded=True)
+    progress_box = st.status("보유 종목 실시간 시세 조회 중...", expanded=True)
 
     def _fetch_one(holding):
         rowid, ticker, shares, avg_price = holding
@@ -90,10 +90,10 @@ else:
                 "가격조회실패": price_failed,
             })
 
-    progress_box.update(label="✅ 시세 조회 완료", state="complete", expanded=False)
+    progress_box.update(label="시세 조회 완료", state="complete", expanded=False)
 
     if failed_tickers:
-        st.warning(f"⚠️ 다음 종목은 실시간 시세를 가져오지 못해 손익 계산에서 제외했습니다: {', '.join(failed_tickers)}")
+        st.warning(f"다음 종목은 실시간 시세를 가져오지 못해 손익 계산에서 제외했습니다: {', '.join(failed_tickers)}")
 
     # 병렬 처리로 순서가 섞였을 수 있으니 원래 등록 순서로 재정렬
     rowid_order = {h[0]: i for i, h in enumerate(holdings)}
@@ -118,7 +118,7 @@ else:
     col_table, col_pie = st.columns([3, 2])
 
     with col_table:
-        st.subheader("📋 보유 종목 상세")
+        st.subheader("보유 종목 상세")
         display_df = df.drop(columns=["rowid", "가격조회실패"]).copy()
         for col in ["평균단가", "현재가", "평가금액", "평가손익"]:
             display_df[col] = df[col].map(lambda x: f"{x:,.2f}" if pd.notna(x) else "N/A")
@@ -131,13 +131,13 @@ else:
             target_to_delete = st.selectbox("삭제할 보유 종목 선택", options=df["종목"].tolist(),
                                              key="del_target", label_visibility="collapsed")
         with del_col2:
-            if st.button("🗑️ 삭제", use_container_width=True):
+            if st.button("삭제", use_container_width=True):
                 rowid_to_delete = df[df["종목"] == target_to_delete]["rowid"].iloc[0]
                 db.delete_holding(int(rowid_to_delete))
                 st.rerun()
 
     with col_pie:
-        st.subheader("🥧 자산 비중")
+        st.subheader("자산 비중")
         fig = go.Figure(data=[go.Pie(
             labels=ok_df["종목"], values=ok_df["평가금액"], hole=0.45,
             marker=dict(colors=["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777"]),
@@ -147,4 +147,4 @@ else:
         st.plotly_chart(fig, use_container_width=True)
 
 st.write("---")
-st.caption("⚠️ 시세는 참고용이며, 실제 매매 시 증권사 앱의 시세를 기준으로 확인하세요.")
+st.caption("시세는 참고용이며, 실제 매매 시 증권사 앱의 시세를 기준으로 확인하세요.")
