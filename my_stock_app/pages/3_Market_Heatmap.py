@@ -429,8 +429,9 @@ with col_market:
 target_dataset = KOSPI_STOCKS if "KOSPI" in selected_market else US_MARKET_DATA
 ttl = smart_cache_ttl(default_open=60, default_closed=1800)
 
-with st.spinner("📡 시장 데이터 수집 및 비주얼 매핑 중..."):
-    df_heatmap = fetch_heatmap_data(target_dataset, ttl)
+skeleton_ph = theme.skeleton(height=850)
+df_heatmap = fetch_heatmap_data(target_dataset, ttl)
+skeleton_ph.empty()
 
 if not df_heatmap.empty:
     df_heatmap["Weight"] = pd.to_numeric(df_heatmap["Weight"])
