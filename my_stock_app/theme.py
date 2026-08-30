@@ -70,8 +70,8 @@ def inject_base_css():
         """, unsafe_allow_html=True)
 
 
-def page_header(title: str, subtitle: str = None, icon: str = "🛰️"):
-    st.title(f"{icon} {title}")
+def page_header(title: str, subtitle: str = None, icon: str = ""):
+    st.title(f"{icon} {title}".strip())
     if subtitle:
         st.caption(subtitle)
 
