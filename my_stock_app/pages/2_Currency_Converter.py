@@ -60,7 +60,7 @@ if os.path.exists(icon_path):
     img = Image.open(icon_path)
     st.set_page_config(page_title="ZION | Currency", page_icon=img, layout="wide")
 else:
-    st.set_page_config(page_title="ZION | Currency", page_icon="💱", layout="wide")
+    st.set_page_config(page_title="ZION | Currency", page_icon="Z", layout="wide")
 
 theme.inject_base_css()
 require_login()
@@ -82,7 +82,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-theme.page_header("DUAL-SYNC CURRENCY TERMINAL", icon="🛰️")
+theme.page_header("DUAL-SYNC CURRENCY TERMINAL", icon="")
 st.write("---")
 
 currencies = {
@@ -118,7 +118,7 @@ if rate:
         st.markdown('</div>', unsafe_allow_html=True)
 
     with c2:
-        st.markdown('<div class="sync-icon">⇆</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sync-icon">=</div>', unsafe_allow_html=True)
 
     with c3:
         st.markdown('<div class="curr-label">KRW (대한민국 원)</div>', unsafe_allow_html=True)
@@ -129,15 +129,15 @@ if rate:
     display_rate = rate * 100 if is_jpy else rate
     unit_text = "100엔" if is_jpy else f"1 {currencies[new_curr]['unit']}"
 
-    st.subheader("📊 실시간 시장 지표")
+    st.subheader("실시간 시장 지표")
     m1, m2, m3 = st.columns(3)
     m1.metric("기준 환율", f"{display_rate:,.2f} KRW", help=f"{unit_text} 당 가격")
     m2.metric("통화 기호", currencies[new_curr]['unit'])
     m3.metric("데이터 소스", "Yahoo Finance")
-    st.caption(f"🕒 최종 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    st.caption(f"최종 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     st.write("---")
-    st.subheader("📈 최근 7일 환율 추이")
+    st.subheader("최근 7일 환율 추이")
     hist = get_rate_history(currencies[new_curr]['ticker'], period="7d")
     if hist is not None and not hist.empty:
         trend_series = hist['Close'] * 100 if is_jpy else hist['Close']
@@ -153,7 +153,7 @@ if rate:
     else:
         st.caption("추이 데이터를 불러오지 못했습니다.")
 else:
-    st.error("📡 외계 신호 간섭(데이터 로드 실패): 환율 정보를 가져올 수 없습니다.")
+    st.error("외계 신호 간섭(데이터 로드 실패): 환율 정보를 가져올 수 없습니다.")
 
 st.write("---")
-st.info("💡 입력창에 숫자를 치고 엔터를 누르면 반대편 통화가 즉시 동기화돼요. 자주 쓰는 금액은 프리셋 버튼으로 바로 입력할 수 있어요.")
+st.info("입력창에 숫자를 치고 엔터를 누르면 반대편 통화가 즉시 동기화돼요. 자주 쓰는 금액은 프리셋 버튼으로 바로 입력할 수 있어요.")
