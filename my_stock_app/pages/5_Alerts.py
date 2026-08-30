@@ -21,7 +21,7 @@ if os.path.exists(icon_path):
     img = Image.open(icon_path)
     st.set_page_config(page_title="ZION | Alerts", page_icon=img, layout="wide")
 else:
-    st.set_page_config(page_title="ZION | Alerts", page_icon="🔔", layout="wide")
+    st.set_page_config(page_title="ZION | Alerts", page_icon="Z", layout="wide")
 
 theme.inject_base_css()
 require_login()
@@ -32,7 +32,7 @@ st.write("---")
 
 # --- 1. Slack 연동 설정 ---
 with st.container(border=True):
-    st.subheader("🔗 Slack 연동 설정")
+    st.subheader("Slack 연동 설정")
     st.caption(
         "Slack에서 '앱 > Incoming Webhooks'로 발급받은 Webhook URL을 붙여넣으세요. "
         "이 값은 브라우저 세션에만 저장되고 서버에 영구 저장되지 않아요."
@@ -44,9 +44,9 @@ with st.container(border=True):
         placeholder="https://hooks.slack.com/services/...",
     )
     st.session_state.slack_webhook = webhook_url
-    if st.button("🔔 테스트 알림 보내기", disabled=not webhook_url):
+    if st.button("테스트 알림 보내기", disabled=not webhook_url):
         try:
-            resp = requests.post(webhook_url, json={"text": "🛰️ ZION 알림 테스트입니다. 연동이 정상 작동합니다!"}, timeout=5)
+            resp = requests.post(webhook_url, json={"text": "ZION 알림 테스트입니다. 연동이 정상 작동합니다!"}, timeout=5)
             if resp.status_code == 200:
                 st.success("테스트 메시지를 보냈어요. Slack 채널을 확인해보세요.")
             else:
@@ -58,7 +58,7 @@ st.write("")
 
 # --- 2. 관심 종목 관리 ---
 with st.container(border=True):
-    st.subheader("⭐ 관심 종목 관리")
+    st.subheader("관심 종목 관리")
     c1, c2 = st.columns([4, 1])
     with c1:
         new_watch = st.text_input("종목 코드 추가", placeholder="예: AAPL, 005930.KS",
@@ -76,7 +76,7 @@ with st.container(border=True):
         chip_cols = st.columns(min(len(watchlist), 6) or 1)
         for i, tk in enumerate(watchlist):
             with chip_cols[i % len(chip_cols)]:
-                if st.button(f"❌ {tk}", key=f"unwatch_{tk}", use_container_width=True):
+                if st.button(f"{tk} 제거", key=f"unwatch_{tk}", use_container_width=True):
                     db.delete_watch(USER_ID, tk)
                     st.rerun()
 
@@ -115,13 +115,13 @@ def compute_signal(ticker):
 
 
 # --- 4. 시그널 확인 + 알림 발송 ---
-st.subheader("🔍 지금 신호 확인")
+st.subheader("지금 신호 확인")
 if not watchlist:
     st.caption("관심 종목을 먼저 등록해주세요.")
 else:
-    if st.button("⚡ 전체 신호 확인 & Slack 알림 보내기", type="primary", use_container_width=True):
+    if st.button("전체 신호 확인 & Slack 알림 보내기", type="primary", use_container_width=True):
         results = []
-        progress_box = st.status("📡 관심 종목 신호 계산 중...", expanded=True)
+        progress_box = st.status("관심 종목 신호 계산 중...", expanded=True)
         with ThreadPoolExecutor(max_workers=min(8, len(watchlist))) as executor:
             future_to_tk = {executor.submit(compute_signal, tk): tk for tk in watchlist}
             done_count = 0
@@ -134,23 +134,19 @@ else:
                     progress_box.write(f"({done_count}/{len(watchlist)}) {tk} → {r['signal']}")
                 else:
                     progress_box.write(f"({done_count}/{len(watchlist)}) {tk} → 조회 실패")
-        progress_box.update(label="✅ 신호 계산 완료", state="complete", expanded=False)
+        progress_box.update(label="신호 계산 완료", state="complete", expanded=False)
 
         if results:
             df = pd.DataFrame(results)
-            emoji_map = {"BUY": "🟢", "SELL": "🔴", "HOLD": "⚪"}
-            df_display = df.copy()
-            df_display["signal"] = df_display["signal"].map(lambda s: f"{emoji_map[s]} {s}")
-            st.dataframe(df_display.rename(columns={
+            st.dataframe(df.rename(columns={
                 "ticker": "종목", "price": "현재가", "rsi": "RSI", "signal": "시그널"
             }), use_container_width=True, hide_index=True)
 
             actionable = [r for r in results if r["signal"] in ("BUY", "SELL")]
             if actionable and webhook_url:
-                lines = ["🛰️ *ZION 시그널 알림*"]
+                lines = ["*ZION 시그널 알림*"]
                 for r in actionable:
-                    emoji = "🟢" if r["signal"] == "BUY" else "🔴"
-                    lines.append(f"{emoji} *{r['ticker']}* — {r['signal']} 시그널 (현재가 {r['price']:.2f}, RSI {r['rsi']:.1f})")
+                    lines.append(f"*{r['ticker']}* — {r['signal']} 시그널 (현재가 {r['price']:.2f}, RSI {r['rsi']:.1f})")
                 try:
                     resp = requests.post(webhook_url, json={"text": "\n".join(lines)}, timeout=5)
                     if resp.status_code == 200:
@@ -168,7 +164,7 @@ else:
 
 st.write("---")
 st.markdown("""
-**💡 자동으로 주기적 알림을 받으려면?**
+** 자동으로 주기적 알림을 받으려면?**
 
 Streamlit 앱은 브라우저 탭이 열려 있을 때만 실행되기 때문에, "매일 아침 9시에 자동으로 확인"처럼
 정해진 시간에 스스로 실행되진 않아요. 완전 자동화하려면 아래처럼 외부 스케줄러가 필요해요:
