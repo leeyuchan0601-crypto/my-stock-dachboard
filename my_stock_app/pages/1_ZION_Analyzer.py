@@ -48,7 +48,7 @@ if os.path.exists(icon_path):
     img = Image.open(icon_path)
     st.set_page_config(page_title="ZION | Analyzer", page_icon=img, layout="wide")
 else:
-    st.set_page_config(page_title="ZION | Analyzer", page_icon="📈", layout="wide")
+    st.set_page_config(page_title="ZION | Analyzer", page_icon="Z", layout="wide")
 
 theme.inject_base_css()
 require_login()
@@ -113,7 +113,7 @@ class StockAnalyzer():
         rsi_val = last['RSI']
         m2.metric("RSI 지수", f"{float(rsi_val):.1f}" if pd.notna(rsi_val) else "N/A")
         recent_sig = display_df['Signal'].tail(3)
-        sig_text = "🟢 BUY" if 1 in recent_sig.values else "🔴 SELL" if -1 in recent_sig.values else "⚪ HOLD"
+        sig_text = "BUY" if 1 in recent_sig.values else "SELL" if -1 in recent_sig.values else "HOLD"
         m3.metric("최근 시그널(3일)", sig_text)
 
     def display_financials(self):
@@ -177,7 +177,7 @@ class StockAnalyzer():
 
         fig.update_layout(
             template='plotly_white', paper_bgcolor='#ffffff', plot_bgcolor='#ffffff',
-            height=800, title_text=f"🛰️ {self.ticker} INTERACTIVE TERMINAL",
+            height=800, title_text=f"{self.ticker} INTERACTIVE TERMINAL",
             hovermode='x unified', showlegend=True,
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             margin=dict(l=10, r=10, t=50, b=10)
@@ -241,7 +241,7 @@ class StockAnalyzer():
                            yaxis=dict(title="자산 배수(시작=1.0)", gridcolor="#e2e8f0"),
                            xaxis=dict(gridcolor="#e2e8f0"))
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("⚠️ 과거 데이터 기반 시뮬레이션이며, 수수료·세금·슬리피지는 반영되지 않았습니다. 실제 투자 성과와 다를 수 있습니다.")
+        st.caption("과거 데이터 기반 시뮬레이션이며, 수수료·세금·슬리피지는 반영되지 않았습니다. 실제 투자 성과와 다를 수 있습니다.")
 
 
 @st.cache_data(ttl=600)
@@ -297,7 +297,7 @@ if 'ticker_val' not in st.session_state: st.session_state.ticker_val = "ORCL"
 if 'run_analysis' not in st.session_state: st.session_state.run_analysis = False
 
 with st.sidebar:
-    st.header("🛸 ZION CONTROL")
+    st.header("ZION CONTROL")
 
     if "ticker_input_key" not in st.session_state or st.session_state.ticker_input_key != st.session_state.ticker_val:
         st.session_state.ticker_input_key = st.session_state.ticker_val
@@ -317,7 +317,7 @@ with st.sidebar:
     analyze_btn = st.button("SYSTEM START", type="primary", use_container_width=True)
 
     st.write("---")
-    st.caption("⚡ 빠른 선택")
+    st.caption("빠른 선택")
     quick_tickers = ["AAPL", "NVDA", "TSLA", "MSFT", "005930.KS", "SPY"]
     qcols = st.columns(3)
     for i, tk in enumerate(quick_tickers):
@@ -326,17 +326,17 @@ with st.sidebar:
                       on_click=select_quick_ticker, args=(tk,))
 
     st.write("---")
-    st.subheader("📜 최근 검색 기록")
+    st.subheader("최근 검색 기록")
     history = db.get_history(USER_ID, limit=10)
     if not history:
         st.caption("아직 검색 기록이 없습니다.")
     for h_ticker in history:
         h_col1, h_col2 = st.columns([4, 1])
-        if h_col1.button(f"🔍 {h_ticker}", key=f"h_{h_ticker}", use_container_width=True):
+        if h_col1.button(f"{h_ticker}", key=f"h_{h_ticker}", use_container_width=True):
             st.session_state.ticker_val = h_ticker
             st.session_state.run_analysis = True
             st.rerun()
-        if h_col2.button("🗑️", key=f"d_{h_ticker}"):
+        if h_col2.button("삭제", key=f"d_{h_ticker}"):
             db.delete_history(USER_ID, h_ticker)
             st.rerun()
 
@@ -349,24 +349,24 @@ if analyze_btn or st.session_state.run_analysis:
 
     analyzer = StockAnalyzer(final_ticker)
 
-    with st.status(f"🛰️ {final_ticker} 데이터 동기화 중...", expanded=False) as status:
-        st.write("📡 가격 데이터 조회 중...")
+    with st.status(f"{final_ticker} 데이터 동기화 중...", expanded=False) as status:
+        st.write("가격 데이터 조회 중...")
         fetch_ok = analyzer.fetch_data(start_d, end_d)
         if fetch_ok:
-            st.write("📐 기술적 지표 계산 중... (MA5/MA20/RSI)")
+            st.write("기술적 지표 계산 중... (MA5/MA20/RSI)")
             analyzer.calculate_indicators()
-            st.write("🔍 매매 시그널 탐지 중...")
+            st.write("매매 시그널 탐지 중...")
             analyzer.get_signals()
-            status.update(label=f"✅ {final_ticker} 동기화 완료", state="complete")
+            status.update(label=f"{final_ticker} 동기화 완료", state="complete")
         else:
-            status.update(label=f"❌ {final_ticker} 동기화 실패", state="error")
+            status.update(label=f"{final_ticker} 동기화 실패", state="error")
 
     if fetch_ok:
         theme.page_header(f"{final_ticker} SYSTEM DIAGNOSTICS")
         analyzer.display_metrics()
         st.write("---")
         tab1, tab2, tab3, tab4, tab5 = st.tabs(
-            ["📊 CHART", "🧪 BACKTEST", "🔍 COMPARE", "💼 FINANCIALS", "📜 RAW LOGS"]
+            ["CHART","BACKTEST","COMPARE","FINANCIALS","RAW LOGS"]
         )
         with tab1:
             analyzer.visualize()
@@ -380,7 +380,7 @@ if analyze_btn or st.session_state.run_analysis:
             raw_df = analyzer.get_display_df().tail(30)
             st.dataframe(raw_df, use_container_width=True)
             st.download_button(
-                "⬇️ CSV로 다운로드",
+                "CSV로 다운로드",
                 data=raw_df.to_csv().encode("utf-8-sig"),
                 file_name=f"{final_ticker}_raw_data.csv",
                 mime="text/csv",
