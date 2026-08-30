@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 from PIL import Image
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import theme
@@ -57,9 +58,22 @@ if not holdings:
 else:
     rows = []
     failed_tickers = []
-    with st.spinner("📡 실시간 시세 조회 중..."):
-        for rowid, ticker, shares, avg_price in holdings:
-            curr_price, change_pct = fetch_price_with_fallback(ticker)
+    progress_box = st.status("📡 보유 종목 실시간 시세 조회 중...", expanded=True)
+
+    def _fetch_one(holding):
+        rowid, ticker, shares, avg_price = holding
+        curr_price, change_pct = fetch_price_with_fallback(ticker)
+        return rowid, ticker, shares, avg_price, curr_price, change_pct
+
+    # 종목이 여러 개일 때 하나씩 순서대로 기다리지 않고 동시에 조회 (최대 8개씩 병렬)
+    with ThreadPoolExecutor(max_workers=min(8, len(holdings))) as executor:
+        futures = [executor.submit(_fetch_one, h) for h in holdings]
+        done_count = 0
+        for future in as_completed(futures):
+            rowid, ticker, shares, avg_price, curr_price, change_pct = future.result()
+            done_count += 1
+            progress_box.write(f"({done_count}/{len(holdings)}) {ticker} 조회 완료")
+
             price_failed = curr_price is None
             if price_failed:
                 failed_tickers.append(ticker)
@@ -76,8 +90,14 @@ else:
                 "가격조회실패": price_failed,
             })
 
+    progress_box.update(label="✅ 시세 조회 완료", state="complete", expanded=False)
+
     if failed_tickers:
         st.warning(f"⚠️ 다음 종목은 실시간 시세를 가져오지 못해 손익 계산에서 제외했습니다: {', '.join(failed_tickers)}")
+
+    # 병렬 처리로 순서가 섞였을 수 있으니 원래 등록 순서로 재정렬
+    rowid_order = {h[0]: i for i, h in enumerate(holdings)}
+    rows.sort(key=lambda r: rowid_order[r["rowid"]])
 
     df = pd.DataFrame(rows)
     ok_df = df[~df["가격조회실패"]]
