@@ -15,6 +15,24 @@ from auth import require_login, ensure_user
 from data_source import download_with_retry
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _fetch_price_history(ticker, extended_start, end_date):
+    """가격 데이터는 5분 캐시. 같은 종목/기간을 다시 조회해도 야후에 재요청하지 않음."""
+    data = download_with_retry(ticker, start=extended_start, end=end_date, threads=True)
+    if data.empty:
+        return None
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(0)
+    return data
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _fetch_financials(ticker):
+    """분기 재무제표는 자주 안 바뀌니 1시간 캐시."""
+    t_obj = yf.Ticker(ticker)
+    return pd.concat([t_obj.quarterly_financials, t_obj.quarterly_balance_sheet, t_obj.quarterly_cashflow])
+
+
 def select_quick_ticker(tk):
     st.session_state.ticker_val = tk
     st.session_state.ticker_input_key = tk
@@ -49,19 +67,16 @@ class StockAnalyzer():
         buffer_days = 40
         extended_start = start_date - datetime.timedelta(days=buffer_days)
 
-        with st.spinner(f"📡 [ZION] {self.ticker} 동기화 중..."):
-            try:
-                data = download_with_retry(self.ticker, start=extended_start, end=end_date, threads=True)
-                if data.empty:
-                    st.error("데이터가 없습니다. 종목 코드를 확인해주세요.")
-                    return False
-                if isinstance(data.columns, pd.MultiIndex):
-                    data.columns = data.columns.get_level_values(0)
-                self.df = data
-                return True
-            except Exception:
-                st.error("데이터 수신 중 오류가 발생했습니다.")
+        try:
+            data = _fetch_price_history(self.ticker, extended_start, end_date)
+            if data is None:
+                st.error("데이터가 없습니다. 종목 코드를 확인해주세요.")
                 return False
+            self.df = data
+            return True
+        except Exception:
+            st.error("데이터 수신 중 오류가 발생했습니다.")
+            return False
 
     def calculate_indicators(self):
         if self.df is None:
@@ -103,8 +118,7 @@ class StockAnalyzer():
 
     def display_financials(self):
         try:
-            t_obj = yf.Ticker(self.ticker)
-            df_all = pd.concat([t_obj.quarterly_financials, t_obj.quarterly_balance_sheet, t_obj.quarterly_cashflow])
+            df_all = _fetch_financials(self.ticker)
             target = {
                 'Total Revenue': '매출액', 'Gross Profit': '매출총이익', 'Operating Income': '영업이익',
                 'Net Income': '당기순이익', 'EBITDA': 'EBITDA', 'Basic EPS': 'EPS',
@@ -334,9 +348,20 @@ if analyze_btn or st.session_state.run_analysis:
         db.add_history(USER_ID, final_ticker)
 
     analyzer = StockAnalyzer(final_ticker)
-    if analyzer.fetch_data(start_d, end_d):
-        analyzer.calculate_indicators()
-        analyzer.get_signals()
+
+    with st.status(f"🛰️ {final_ticker} 데이터 동기화 중...", expanded=False) as status:
+        st.write("📡 가격 데이터 조회 중...")
+        fetch_ok = analyzer.fetch_data(start_d, end_d)
+        if fetch_ok:
+            st.write("📐 기술적 지표 계산 중... (MA5/MA20/RSI)")
+            analyzer.calculate_indicators()
+            st.write("🔍 매매 시그널 탐지 중...")
+            analyzer.get_signals()
+            status.update(label=f"✅ {final_ticker} 동기화 완료", state="complete")
+        else:
+            status.update(label=f"❌ {final_ticker} 동기화 실패", state="error")
+
+    if fetch_ok:
         theme.page_header(f"{final_ticker} SYSTEM DIAGNOSTICS")
         analyzer.display_metrics()
         st.write("---")
