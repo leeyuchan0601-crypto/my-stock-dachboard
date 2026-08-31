@@ -312,7 +312,7 @@ with st.sidebar:
     ticker_input = st.text_input("종목 코드", key="ticker_input_key", on_change=on_ticker_enter).upper().strip()
 
     col1, col2 = st.columns(2)
-    start_d = col1.date_input("시작일", datetime.date.today() - datetime.timedelta(days=180))
+    start_d = col1.date_input("시작일", datetime.date.today() - datetime.timedelta(days=365*3))
     end_d = col2.date_input("종료일", datetime.date.today())
     analyze_btn = st.button("SYSTEM START", type="primary", use_container_width=True)
 
