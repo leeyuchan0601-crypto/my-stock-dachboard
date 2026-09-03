@@ -137,8 +137,8 @@ if rate:
     st.caption(f"최종 업데이트: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     st.write("---")
-    st.subheader("최근 7일 환율 추이")
-    hist = get_rate_history(currencies[new_curr]['ticker'], period="7d")
+    st.subheader("최근 1년 환율 추이")
+    hist = get_rate_history(currencies[new_curr]['ticker'], period="1y")
     if hist is not None and not hist.empty:
         trend_series = hist['Close'] * 100 if is_jpy else hist['Close']
         fig = go.Figure()
